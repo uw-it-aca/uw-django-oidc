@@ -1,7 +1,7 @@
 import jwt
-from uw_oidc.exceptions import InvalidTokenException
-from uw_oidc.settings import (
+from uw_oidc import (
     get_token_audience, get_token_issuer, get_token_leeway)
+from uw_oidc.exceptions import InvalidTokenException
 
 
 def get_payload_from_token(token_jwt):

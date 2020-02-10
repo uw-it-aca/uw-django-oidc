@@ -1,6 +1,6 @@
 import re
+from uw_oidc import get_session_token_name
 from uw_oidc.exceptions import InvalidUserError
-from uw_oidc.settings import get_session_token_name
 
 VALID_USER_ID = re.compile(r'^[a-z][a-z0-9\-\_\.]{,127}$', re.I)
 SESSION_TOKEN_NAME = get_session_token_name()
