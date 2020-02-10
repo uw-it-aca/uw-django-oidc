@@ -1,4 +1,3 @@
-from django.contrib.auth import authenticate, login
 from django.http import HttpResponse
 from uw_oidc.exceptions import (
     ValidationError, MissingTokenError, UserMismatchError, PyJWTError)
