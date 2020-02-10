@@ -34,7 +34,7 @@ class IdtokenValidationMiddleware:
         except (ValidationError, PyJWTError) as ex:
             return HttpResponse(status=401, reason=str(ex))
         return None
-            
+
 
 def get_authorization_header(request):
     try:
