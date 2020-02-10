@@ -1,0 +1,2 @@
+include auth_token/VERSION
+recursive-include auth_token *
