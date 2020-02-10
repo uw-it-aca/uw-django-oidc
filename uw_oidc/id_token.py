@@ -1,11 +1,5 @@
 from django.conf import settings
 import jwt
-from uw_oidc import (
-    get_token_audience, get_token_issuer, get_token_leeway)
-from uw_oidc.exceptions import InvalidTokenException
-
-token_audience = getattr(settings, "TOKEN_AUDIENCE")
-token_issuer = getattr(settings, "TOKEN_ISSUER")
 
 
 def get_payload_from_token(token_jwt):
@@ -14,7 +8,7 @@ def get_payload_from_token(token_jwt):
     raise Exception if not a valid token
     """
     # print("TOKEN_JWT={}".format(token_jwt))
-    return jwt.decode(token,
+    return jwt.decode(token_jwt,
                       options={
                           "require_exp": True,
                           "require_iat": True,
@@ -25,9 +19,8 @@ def get_payload_from_token(token_jwt):
                           "verify_exp": True,
                           "verify_iss": True,
                           "verify_aud": True},
-                      verify_expiration=True,
-                      audience=token_audience,
-                      issuer=token_issuer,
+                      audience=getattr(settings, "TOKEN_AUDIENCE"),
+                      issuer=getattr(settings, "TOKEN_ISSUER"),
                       leeway=get_token_leeway())
 
 
