@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from uw_oidc.exceptions import (
     ValidationError, MissingTokenError, UserMismatchError, PyJWTError)
 from uw_oidc.id_token import get_payload_from_token
-from uw_oidc.session import create_session_user, set_token_in_session
+from uw_oidc.session_util import create_session_user, set_token_in_session
 
 
 class IdtokenValidationMiddleware:
