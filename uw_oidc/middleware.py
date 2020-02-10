@@ -33,7 +33,7 @@ class IdtokenValidationMiddleware:
 
             except ValidationError as ex:
                 return HttpResponse(status=401, reason=str(ex))
-            except PyJWTError as ex::
+            except PyJWTError as ex:
                 return HttpResponse(status=401, reason=str(ex))
 
         return None
