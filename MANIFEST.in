@@ -1,2 +1,2 @@
-include auth_token/VERSION
-recursive-include auth_token *
+include uw_oidc/VERSION
+recursive-include uw_oidc *
