@@ -1,9 +1,10 @@
 import re
+from django.conf import settings
 from uw_oidc import get_session_token_name
 from uw_oidc.exceptions import InvalidUserError
 
 VALID_USER_ID = re.compile(r'^[a-z][a-z0-9\-\_\.]{,127}$', re.I)
-SESSION_TOKEN_NAME = get_session_token_name()
+SESSION_TOKEN_NAME = getattr(settings, "SESSION_TOKEN_NAME")
 
 
 def create_session_user(request, token_payload):
