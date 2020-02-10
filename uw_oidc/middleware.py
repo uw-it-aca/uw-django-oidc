@@ -31,8 +31,10 @@ class IdtokenValidationMiddleware:
 
             set_token_in_session(request, token)
 
-            except (ValidationError, PyJWTError):
-                return HttpResponse(status=401)
+            except ValidationError as ex:
+                return HttpResponse(status=401, reason=str(ex))
+            except PyJWTError as ex::
+                return HttpResponse(status=401, reason=str(ex))
 
         return None
 
