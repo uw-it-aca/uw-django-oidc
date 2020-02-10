@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.http import HttpResponse
 
@@ -18,7 +19,7 @@ class OIDCAuthenticationMiddleware(object):
         """
         https://docs.djangoproject.com/en/2.1/topics/http/middleware/#process-view
         """
-        if self._is_myuw_hybrid(request):
+        if self._is_oidc_client(request):
             try:
                 token = self._token_from_request(request)
 
@@ -47,5 +48,6 @@ class OIDCAuthenticationMiddleware(object):
         raise MissingUserException()
 
     @staticmethod
-    def _is_myuw_hybrid(request):
-        return (request.META.get('HTTP_USER_AGENT', '') == 'MyUW_Hybrid/1.0')
+    def _is_oidc_client(request):
+        return (request.META.get('HTTP_USER_AGENT', '') == getattr(
+            settings, 'OIDC_CLIENT_USER_AGENT'))
