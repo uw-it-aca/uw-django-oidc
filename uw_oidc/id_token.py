@@ -1,5 +1,10 @@
 from django.conf import settings
-import jwt
+from jwt import decode
+from jwt.exceptions import PyJWTError
+
+
+class InvalidTokenError(Exception):
+    pass
 
 
 def get_payload_from_token(token_jwt):
@@ -8,7 +13,8 @@ def get_payload_from_token(token_jwt):
     raise Exception if not a valid token
     """
     # print("TOKEN_JWT={}".format(token_jwt))
-    return jwt.decode(token_jwt,
+    try:
+        return decode(token_jwt,
                       options={
                           "require_exp": True,
                           "require_iat": True,
@@ -22,6 +28,8 @@ def get_payload_from_token(token_jwt):
                       audience=getattr(settings, "TOKEN_AUDIENCE"),
                       issuer=getattr(settings, "TOKEN_ISSUER"),
                       leeway=get_token_leeway())
+    except PyJWTError as ex:
+        raise InvalidTokenError(ex)
 
 
 def get_token_leeway():

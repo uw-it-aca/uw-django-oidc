@@ -1,88 +1,80 @@
 from django.conf import settings
+from django.contrib.auth import authenticate, login, logout, load_backend
+from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
-from uw_oidc.exceptions import (
-    InvalidUserError, MissingTokenError, UserMismatchError)
-from uw_oidc.id_token import get_payload_from_token
+from uw_oidc.id_token import get_payload_from_token, InvalidTokenError
 
 
-class IdtokenValidationMiddleware:
+class IDTokenAuthenticationMiddleware:
     """
     Supports ID Token (issued by UW OIDC provider)
     based request authentication for specified clients.
     """
-
     def __init__(self, get_response=None):
         self.get_response = get_response
 
     def process_view(self, request, view_func, view_args, view_kwargs):
-        if is_oidc_client(request):
-            try:
-                json_web_token = get_authorization_header(request)
-                if json_web_token is None:
-                    raise MissingTokenError()
+        if not hasattr(request, 'session'):
+            raise ImproperlyConfigured(
+                'This authentication middleware requires session middleware '
+                'to be installed. Edit your MIDDLEWARE setting to insert '
+                '"django.contrib.sessions.middleware.SessionMiddleware" '
+                'before "uw_oidc.middleware.IDTokenAuthenticationMiddleware".')
 
-                token_payload = get_payload_from_token(json_web_token)
-                # print("TOKEN_PAYLOAD={}".format(token_payload))
+        if is_oidc_client(request):
+            json_web_token = request.META.get('HTTP_AUTHORIZATION')
+
+            session_key = getattr(
+                settings, 'OIDC_TOKEN_SESSION_KEY', 'oidcIdToken')
+            if (request.user.is_authenticated and json_web_token and
+                    json_web_token == request.session.get(session_key)):
+                # The user is authenticated, and the token in session matches
+                # the one in the request
+                return None
+
+            try:
+                payload = get_payload_from_token(json_web_token)
+                username = self.clean_username(payload.get('sub'), request)
 
                 if request.user.is_authenticated:
-                    if not match_original_userid(request, token_payload):
-                        raise UserMismatchError(token_payload)
+                    if request.user.get_username() != username:
+                        # An authenticated user is associated with the request,
+                        # but it does not match the user in the token.
+                        logout(request)
                 else:
-                    create_session_user(request, token_payload)
+                    # We are seeing this user for the first time in this
+                    # session, attempt to authenticate the user.
+                    user = authenticate(request, remote_user=username)
+                    if user:
+                        # User is valid.  Set request.user and persist user
+                        # in the session by logging the user in.
+                        login(request, user)
+                        request.session[session_key] = json_web_token
 
-                set_token_in_session(request, json_web_token)
+            except InvalidTokenError as ex:
+                return HttpResponse(status=401, reason=ex)
 
-            except Exception as ex:
-                return HttpResponse(status=401, reason=str(ex))
         return None
 
+    def clean_username(self, username, request):
+        backend_str = request.session[auth.BACKEND_SESSION_KEY]
+        backend = auth.load_backend(backend_str)
+        try:
+            username = backend.clean_username(username)
+        except AttributeError:  # Backend has no clean_username method.
+            pass
 
-def is_oidc_client(request):
-    try:
-        header_name = getattr(settings, 'UWOIDC_CLIENT_HEADER', '')
-        if header_name and len(header_name):
-            hr = request.META.get(header_name)
-            return hr and len(hr)
-    except Exception:
-        pass
-    return False
+        try:
+            # Convert eppn to uwnetid
+            # TODO: what about apps that need eppn?
+            (username, domain) = username.split('@', 1)
+        except ValueError:
+            pass
 
+        return username
 
-def get_authorization_header(request):
-    try:
-        return request.META.get('HTTP_AUTHORIZATION')
-    except Exception:
-        return None
-
-
-def match_original_userid(request, token_payload):
-    userid = token_payload.get("sub")
-    if hasattr(request, 'user'):
-        username = request.user.username
-        if username is not None and len(username):
-            try:
-                (username, domain) = username.split('@', 1)
-            except ValueError as ex:
-                pass
-            return username
-    return userid and username and userid == username
-
-
-def create_session_user(request, token_payload):
-    """
-    Authenticate the user for the first time in this session
-    """
-    userid = token_payload.get("sub")
-    if not (userid and len(userid)):
-        raise InvalidUserError(token_payload)
-    user = authenticate(request, remote_user=userid)
-    if user is not None:
-        # User is valid.  Set request.user and persist user in the session
-        request.user = user
-        login(request, user)
-
-
-def set_token_in_session(request, token):
-    st_name = getattr(settings, "SESSION_TOKEN_NAME")
-    if st_name and len(st_name):
-        request.session[st_name] = token
+    def is_oidc_client(self, request):
+        oidc_ua = getattr(settings, 'OIDC_CLIENT_USER_AGENT')
+        if oidc_ua:
+            return oidc_ua == request.META.get('HTTP_USER_AGENT', '')
+        return False
