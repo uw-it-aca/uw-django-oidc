@@ -14,6 +14,10 @@ And this to your MIDDLEWARE_CLASSES:
     'uw_oidc.middleware.IdtokenValidationMiddleware'
 
 To use this client, you'll need these settings in your application or script:
+
+    # a custom http header indicating if the request is from an oidc client
+    UWOIDC_CLIENT_HEADER
+
     # Specifies the name of the token to be stored in Django session
     SESSION_TOKEN_NAME
 

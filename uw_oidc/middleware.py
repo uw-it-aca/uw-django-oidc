@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.http import HttpResponse
 from uw_oidc.exceptions import (
     ValidationError, MissingTokenError, UserMismatchError, PyJWTError)
@@ -14,25 +15,37 @@ class IdtokenValidationMiddleware:
         self.get_response = get_response
 
     def process_view(request, view_func, view_args, view_kwargs):
-        try:
-            json_web_token = get_authorization_header(request)
-            if json_web_token is None:
-                raise MissingTokenError()
+        if self._is_oidc_client(request):
+            try:
+                json_web_token = get_authorization_header(request)
+                if json_web_token is None:
+                    raise MissingTokenError()
 
-            token_payload = get_payload_from_token(json_web_token)
-            # print("TOKEN_PAYLOAD={}".format(token_payload))
+                token_payload = get_payload_from_token(json_web_token)
+                # print("TOKEN_PAYLOAD={}".format(token_payload))
 
-            if request.user.is_authenticated:
-                if not match_original_userid(request, token_payload):
-                    raise UserMismatchError(token_payload)
-            else:
-                create_session_user(request, token_payload)
+                if request.user.is_authenticated:
+                    if not match_original_userid(request, token_payload):
+                        raise UserMismatchError(token_payload)
+                else:
+                    create_session_user(request, token_payload)
 
-            set_token_in_session(request, token)
+                set_token_in_session(request, token)
 
-        except (ValidationError, PyJWTError) as ex:
-            return HttpResponse(status=401, reason=str(ex))
+            except (ValidationError, PyJWTError) as ex:
+                return HttpResponse(status=401, reason=str(ex))
         return None
+
+    @staticmethod
+    def _is_oidc_client(request):
+        try:
+            header_name = getattr(settings, 'UWOIDC_CLIENT_HEADER', '')
+            if header_name and len(header_name):
+                hr = request.META.get(header_name)
+                return hr and len(client_identifier)
+        except Exception:
+            pass
+        return False
 
 
 def get_authorization_header(request):
