@@ -3,7 +3,7 @@ from django.conf import settings
 from django.test.client import RequestFactory
 from uw_oidc.middleware import (
     IdtokenValidationMiddleware, get_authorization_header,
-    match_original_userid)
+    match_original_userid, create_session_user, set_token_in_session)
 
 
 class TestMiddleware(TestCase):

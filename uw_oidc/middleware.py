@@ -3,7 +3,6 @@ from django.http import HttpResponse
 from uw_oidc.exceptions import (
     ValidationError, MissingTokenError, UserMismatchError, PyJWTError)
 from uw_oidc.id_token import get_payload_from_token
-from uw_oidc.session_util import create_session_user, set_token_in_session
 
 
 class IdtokenValidationMiddleware:
@@ -15,7 +14,7 @@ class IdtokenValidationMiddleware:
         self.get_response = get_response
 
     def process_view(request, view_func, view_args, view_kwargs):
-        if self._is_oidc_client(request):
+        if is_oidc_client(request):
             try:
                 json_web_token = get_authorization_header(request)
                 if json_web_token is None:
@@ -30,22 +29,22 @@ class IdtokenValidationMiddleware:
                 else:
                     create_session_user(request, token_payload)
 
-                set_token_in_session(request, token)
+                set_token_in_session(request, json_web_token)
 
             except (ValidationError, PyJWTError) as ex:
                 return HttpResponse(status=401, reason=str(ex))
         return None
 
-    @staticmethod
-    def _is_oidc_client(request):
-        try:
-            header_name = getattr(settings, 'UWOIDC_CLIENT_HEADER', '')
-            if header_name and len(header_name):
-                hr = request.META.get(header_name)
-                return hr and len(client_identifier)
-        except Exception:
-            pass
-        return False
+
+def is_oidc_client(request):
+    try:
+        header_name = getattr(settings, 'UWOIDC_CLIENT_HEADER', '')
+        if header_name and len(header_name):
+            hr = request.META.get(header_name)
+            return hr and len(client_identifier)
+    except Exception:
+        pass
+    return False
 
 
 def get_authorization_header(request):
@@ -66,3 +65,23 @@ def match_original_userid(request, token_payload):
                 pass
             return username
     return userid and username and userid == username
+
+
+def create_session_user(request, token_payload):
+    """
+    Authenticate the user for the first time in this session
+    Raise: InvalidUserError
+    """
+    userid = token_payload.get("sub")
+    if not is_valid_userid(userid):
+        raise InvalidUserError(token_payload)
+    user = authenticate(request, remote_user=userid)
+    if user is not None:
+        request.user = user
+        login(request, user)
+
+
+def set_token_in_session(request, token):
+    st_name = getattr(settings, "SESSION_TOKEN_NAME")
+    if st_name and len(st_name):
+        request.session[st_name] = token
