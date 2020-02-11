@@ -12,6 +12,8 @@ class IDTokenAuthenticationMiddleware:
     """
     def __init__(self, get_response=None):
         self.get_response = get_response
+        self.session_key = getattr(
+            settings, 'OIDC_TOKEN_SESSION_KEY', 'oidcIdToken')
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         if not hasattr(request, 'session'):
@@ -21,38 +23,43 @@ class IDTokenAuthenticationMiddleware:
                 '"django.contrib.sessions.middleware.SessionMiddleware" '
                 'before "uw_oidc.middleware.IDTokenAuthenticationMiddleware".')
 
-        if self.is_oidc_client(request):
-            json_web_token = request.META.get('HTTP_AUTHORIZATION')
+        json_web_token = request.META.get('HTTP_AUTHORIZATION')
+        prev_token = request.session.get(self.session_key)
+        if not json_web_token:
+            # not having the bear token in header
+            if prev_token is not None:
+                # previously authenticated via a token
+                logout(request)
+            # to login required
+            return None
 
-            session_key = getattr(
-                settings, 'OIDC_TOKEN_SESSION_KEY', 'oidcIdToken')
-            if (request.user.is_authenticated and json_web_token and
-                    json_web_token == request.session.get(session_key)):
-                # The user is authenticated, and the token in session matches
-                # the one in the request
-                return None
+        if request.user.is_authenticated and json_web_token == prev_token:
+            # The user is authenticated, and the token in session matches
+            # the one in the request
+            return None
 
-            try:
-                payload = get_payload_from_token(json_web_token)
-                username = self.clean_username(payload.get('sub'), request)
+        try:
+            payload = get_payload_from_token(json_web_token)
+            username = self.clean_username(payload.get('sub'), request)
 
-                if request.user.is_authenticated:
-                    if request.user.get_username() != username:
-                        # An authenticated user is associated with the request,
-                        # but it does not match the user in the token.
-                        logout(request)
-                else:
-                    # We are seeing this user for the first time in this
-                    # session, attempt to authenticate the user.
-                    user = authenticate(request, remote_user=username)
-                    if user:
-                        # User is valid.  Set request.user and persist user
-                        # in the session by logging the user in.
-                        login(request, user)
-                        request.session[session_key] = json_web_token
+            if request.user.is_authenticated:
 
-            except InvalidTokenError as ex:
-                return HttpResponse(status=401, reason=ex)
+                if request.user.get_username() != username:
+                    # An authenticated user is associated with the request,
+                    # but it does not match the user in the token.
+                    logout(request)
+            else:
+                # We are seeing this user for the first time in this
+                # session, attempt to authenticate the user.
+                user = authenticate(request, remote_user=username)
+                if user:
+                    # User is valid.  Set request.user and persist user
+                    # in the session by logging the user in.
+                    login(request, user)
+                    request.session[session_key] = json_web_token
+
+        except InvalidTokenError as ex:
+            return HttpResponse(status=401, reason=str(ex))
 
         return None
 
