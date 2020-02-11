@@ -21,7 +21,7 @@ class IDTokenAuthenticationMiddleware:
                 '"django.contrib.sessions.middleware.SessionMiddleware" '
                 'before "uw_oidc.middleware.IDTokenAuthenticationMiddleware".')
 
-        if is_oidc_client(request):
+        if self.is_oidc_client(request):
             json_web_token = request.META.get('HTTP_AUTHORIZATION')
 
             session_key = getattr(
