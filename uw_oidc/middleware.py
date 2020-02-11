@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.http import HttpResponse
 from uw_oidc.exceptions import (
-    ValidationError, MissingTokenError, UserMismatchError, PyJWTError)
+    InvalidUserError, MissingTokenError, UserMismatchError)
 from uw_oidc.id_token import get_payload_from_token
 
 
@@ -32,7 +32,7 @@ class IdtokenValidationMiddleware:
 
                 set_token_in_session(request, json_web_token)
 
-            except (ValidationError, PyJWTError) as ex:
+            except Exception as ex:
                 return HttpResponse(status=401, reason=str(ex))
         return None
 
