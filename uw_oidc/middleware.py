@@ -42,7 +42,7 @@ def is_oidc_client(request):
         header_name = getattr(settings, 'UWOIDC_CLIENT_HEADER', '')
         if header_name and len(header_name):
             hr = request.META.get(header_name)
-            return hr and len(client_identifier)
+            return hr and len(hr)
     except Exception:
         pass
     return False
