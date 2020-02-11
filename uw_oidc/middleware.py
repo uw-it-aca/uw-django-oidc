@@ -70,13 +70,13 @@ def match_original_userid(request, token_payload):
 def create_session_user(request, token_payload):
     """
     Authenticate the user for the first time in this session
-    Raise: InvalidUserError
     """
     userid = token_payload.get("sub")
-    if not is_valid_userid(userid):
+    if not (userid and len(userid)):
         raise InvalidUserError(token_payload)
     user = authenticate(request, remote_user=userid)
     if user is not None:
+        # User is valid.  Set request.user and persist user in the session
         request.user = user
         login(request, user)
 
