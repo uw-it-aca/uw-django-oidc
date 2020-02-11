@@ -14,7 +14,7 @@ class IdtokenValidationMiddleware:
     def __init__(self, get_response=None):
         self.get_response = get_response
 
-    def process_view(request, view_func, view_args, view_kwargs):
+    def process_view(self, request, view_func, view_args, view_kwargs):
         if is_oidc_client(request):
             try:
                 json_web_token = get_authorization_header(request)
