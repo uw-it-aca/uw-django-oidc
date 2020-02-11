@@ -79,9 +79,3 @@ class IDTokenAuthenticationMiddleware:
             pass
 
         return username
-
-    def is_oidc_client(self, request):
-        oidc_ua = getattr(settings, 'OIDC_CLIENT_USER_AGENT')
-        if oidc_ua:
-            return oidc_ua == request.META.get('HTTP_USER_AGENT', '')
-        return False
