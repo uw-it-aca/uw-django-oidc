@@ -7,7 +7,8 @@ from uw_oidc.id_token import get_payload_from_token
 
 class IdtokenValidationMiddleware:
     """
-    Middleware for handling UW OIDC provided authentication ID Token.
+    Supports ID Token (issued by UW OIDC provider)
+    based request authentication for specified clients.
     """
 
     def __init__(self, get_response=None):
