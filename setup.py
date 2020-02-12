@@ -23,6 +23,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'django>2.1,<3.0',
+        'mock>2.0.0',
         'pyjwt',
     ],
     license='Apache License, Version 2.0',

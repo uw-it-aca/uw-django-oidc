@@ -1,10 +1,7 @@
 from django.conf import settings
 from jwt import decode
 from jwt.exceptions import PyJWTError
-
-
-class InvalidTokenError(Exception):
-    pass
+from uw_oidc.exceptions import InvalidTokenError
 
 
 def get_payload_from_token(token_jwt):
@@ -25,14 +22,8 @@ def get_payload_from_token(token_jwt):
                           "verify_exp": True,
                           "verify_iss": True,
                           "verify_aud": True},
-                      audience=getattr(settings, "TOKEN_AUDIENCE"),
-                      issuer=getattr(settings, "TOKEN_ISSUER"),
-                      leeway=get_token_leeway())
+                      audience=getattr(settings, "TOKEN_AUDIENCE", ""),
+                      issuer=getattr(settings, "TOKEN_ISSUER", ""),
+                      leeway=int(getattr(settings, "TOKEN_LEEWAY", 1)))
     except PyJWTError as ex:
         raise InvalidTokenError(ex)
-
-
-def get_token_leeway():
-    # default to 1 minute
-    v = getattr(settings, "TOKEN_LEEWAY")
-    return int(v) if v else 1

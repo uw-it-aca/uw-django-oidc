@@ -1,8 +1,8 @@
-from django.conf import settings
-from django.contrib.auth import authenticate, login, logout, load_backend
+from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
-from uw_oidc.id_token import get_payload_from_token, InvalidTokenError
+from uw_oidc.id_token import get_payload_from_token
+from uw_oidc.exceptions import InvalidTokenError
 
 
 class IDTokenAuthenticationMiddleware:
@@ -10,6 +10,8 @@ class IDTokenAuthenticationMiddleware:
     Supports ID Token (issued by UW OIDC provider)
     based request authentication for specified clients.
     """
+    TOKEN_SESSION_KEY = 'uw_oidc_idtoken'
+
     def __init__(self, get_response=None):
         self.get_response = get_response
 
@@ -21,48 +23,50 @@ class IDTokenAuthenticationMiddleware:
                 '"django.contrib.sessions.middleware.SessionMiddleware" '
                 'before "uw_oidc.middleware.IDTokenAuthenticationMiddleware".')
 
-        if self.is_oidc_client(request):
-            json_web_token = request.META.get('HTTP_AUTHORIZATION')
+        if 'HTTP_AUTHORIZATION' in request.META:
+            auth_token = request.META['HTTP_AUTHORIZATION']
 
-            session_key = getattr(
-                settings, 'OIDC_TOKEN_SESSION_KEY', 'oidcIdToken')
-            if (request.user.is_authenticated and json_web_token and
-                    json_web_token == request.session.get(session_key)):
+            if (request.user.is_authenticated and auth_token and
+                    auth_token == request.session.get(self.TOKEN_SESSION_KEY)):
                 # The user is authenticated, and the token in session matches
-                # the one in the request
+                # the token in the request
                 return None
 
             try:
-                payload = get_payload_from_token(json_web_token)
+                payload = get_payload_from_token(auth_token)
                 username = self.clean_username(payload.get('sub'), request)
 
                 if request.user.is_authenticated:
                     if request.user.get_username() != username:
                         # An authenticated user is associated with the request,
                         # but it does not match the user in the token.
-                        logout(request)
+                        raise InvalidTokenError('Username mismatch')
                 else:
                     # We are seeing this user for the first time in this
                     # session, attempt to authenticate the user.
-                    user = authenticate(request, remote_user=username)
+                    user = auth.authenticate(request, remote_user=username)
                     if user:
                         # User is valid.  Set request.user and persist user
                         # in the session by logging the user in.
-                        login(request, user)
-                        request.session[session_key] = json_web_token
+                        auth.login(request, user)
+                        request.session[self.TOKEN_SESSION_KEY] = auth_token
 
             except InvalidTokenError as ex:
-                return HttpResponse(status=401, reason=ex)
+                return HttpResponse(status=401,
+                                    reason='Invalid token: {}'.format(ex))
+        else:
+            if (request.user.is_authenticated and
+                    self.TOKEN_SESSION_KEY in request.session):
+                # The user is authenticated with a token in session, but the
+                # request does not contain a token, the session is invalid.
+                del request.session[self.TOKEN_SESSION_KEY]
+                auth.logout(request)
 
         return None
 
-    def clean_username(self, username, request):
-        backend_str = request.session[auth.BACKEND_SESSION_KEY]
-        backend = auth.load_backend(backend_str)
-        try:
-            username = backend.clean_username(username)
-        except AttributeError:  # Backend has no clean_username method.
-            pass
+    def clean_username(self, username):
+        if username is None or not len(username):
+            raise InvalidTokenError('Missing username')
 
         try:
             # Convert eppn to uwnetid
@@ -72,9 +76,3 @@ class IDTokenAuthenticationMiddleware:
             pass
 
         return username
-
-    def is_oidc_client(self, request):
-        oidc_ua = getattr(settings, 'OIDC_CLIENT_USER_AGENT')
-        if oidc_ua:
-            return oidc_ua == request.META.get('HTTP_USER_AGENT', '')
-        return False
