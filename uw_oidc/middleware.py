@@ -34,7 +34,7 @@ class IDTokenAuthenticationMiddleware:
 
             try:
                 payload = get_payload_from_token(auth_token)
-                username = self.clean_username(payload.get('sub'), request)
+                username = self.clean_username(payload.get('sub'))
 
                 if request.user.is_authenticated:
                     if request.user.get_username() != username:
