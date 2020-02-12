@@ -1,7 +1,7 @@
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
-from uw_oidc.id_token import get_payload_from_token
+from uw_oidc.id_token import username_from_token
 from uw_oidc.exceptions import InvalidTokenError
 
 
@@ -33,8 +33,7 @@ class IDTokenAuthenticationMiddleware:
                 return None
 
             try:
-                payload = get_payload_from_token(auth_token)
-                username = self.clean_username(payload.get('sub'))
+                username = self.clean_username(username_from_token(auth_token))
 
                 if request.user.is_authenticated:
                     if request.user.get_username() != username:
@@ -69,8 +68,6 @@ class IDTokenAuthenticationMiddleware:
             raise InvalidTokenError('Missing username')
 
         try:
-            # Convert eppn to uwnetid
-            # TODO: what about apps that need eppn?
             (username, domain) = username.split('@', 1)
         except ValueError:
             pass

@@ -4,14 +4,14 @@ from jwt.exceptions import PyJWTError
 from uw_oidc.exceptions import InvalidTokenError
 
 
-def get_payload_from_token(token_jwt):
+def decode_token(token):
     """
     Return the decoded payload from the token
     raise Exception if not a valid token
     """
-    # print("TOKEN_JWT={}".format(token_jwt))
+    # print("TOKEN_JWT={}".format(token))
     try:
-        return decode(token_jwt,
+        return decode(token,
                       options={
                           "require_exp": True,
                           "require_iat": True,
@@ -27,3 +27,7 @@ def get_payload_from_token(token_jwt):
                       leeway=int(getattr(settings, "TOKEN_LEEWAY", 1)))
     except PyJWTError as ex:
         raise InvalidTokenError(ex)
+
+
+def username_from_token(token):
+    return decode_token(token).get("sub")
