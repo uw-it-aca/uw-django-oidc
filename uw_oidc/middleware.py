@@ -26,12 +26,6 @@ class IDTokenAuthenticationMiddleware:
         if 'HTTP_AUTHORIZATION' in request.META:
             auth_token = request.META['HTTP_AUTHORIZATION']
 
-            if (request.user.is_authenticated and auth_token and
-                    auth_token == request.session.get(self.TOKEN_SESSION_KEY)):
-                # The user is authenticated, and the token in session matches
-                # the token in the request
-                return None
-
             try:
                 username = self.clean_username(username_from_token(auth_token))
 

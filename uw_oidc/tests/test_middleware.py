@@ -11,7 +11,7 @@ import mock
 
 
 @override_settings(AUTHENTICATION_BACKENDS=[
-    'django.contrib.auth.backends.RemoteUserBackend',])
+    'django.contrib.auth.backends.RemoteUserBackend'])
 class TestMiddleware(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
