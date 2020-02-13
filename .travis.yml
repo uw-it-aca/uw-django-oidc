@@ -23,7 +23,7 @@ deploy:
   user: uw-it-aca
   skip_cleanup: true
   password:
-    secure:
+    secure: S3HxdugvJ0Bs6rnw2wxCf38PLnMN86VTO7K9giQcVtTNfk1GlqUnAfUIEFcIPjI0gaYawEoYWh1OTFLBhVGPkwLpYVJhfwetfzycu8lx1ggL3+8B1K2A4aG1xC40H2535vzR1EfSfdAadWxS49m/SSLSYOQFRbmGyw53UNaIhXVw1TmuKQzUrHDyfYtvrAFybkOjN0XMlw/5bwJEkzDiXrWjx5NAbULmBxyvIcUNM2ZHOXFzk7kasdQUpKpKoXEgTjHVI/UczpGIafYgdr4MsrQlTu4ds9JXrmbQ7XeMXjQY3JCNiH4NBJ0ac3RE9UqgXNrdBMoUzwfGISnOe77nCCDGq46n235AzdE/wiftfcykQAESI/TyzmuLnVidV6FTiY2XZXgllgQFOVhCbFjxWo3smoZsdfnwwsVBypsw7/3USqvVhQ/fTWaUrs7vWpAtFgCSzOKqVflRe1N87znNX9/Sgbw4Gww9ep7REeNe99WNFsLROI1a1s5/vySk2hY+fYtf4gtW8GrmlnkjvjPM4PxVdWPiRAylAo0+2h7eMEuz9MG1ia9zInk+sxVW1lSFDzH/iH0edYR+2P8ywt6itlXHv5SkjklC/CMEUo+auHNvqEq3BMteASm5FuHehm7yEIrR5AClQNHxAHG9I9ZO4xjS/3QJ4p3yiaWH9JeKvWo=
   on:
     tags: true
     python: '3.6'
