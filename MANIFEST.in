@@ -1,0 +1,2 @@
+include uw_oidc/VERSION
+recursive-include uw_oidc *

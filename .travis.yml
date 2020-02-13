@@ -1,0 +1,29 @@
+sudo: false
+language: python
+python:
+- '3.6'
+before_script:
+- pip install -r requirements.txt
+- pip install coverage
+- pip install coveralls
+- pip install pycodestyle
+- cp travis-ci/manage.py manage.py
+- python manage.py migrate --noinput;
+script:
+- pycodestyle uw_oidc/
+- python -m compileall uw_oidc/
+- coverage run --source=uw_oidc/ manage.py test uw_oidc
+after_script:
+- coveralls
+before_deploy:
+- find uw_oidc/ -name \*.pyc -exec rm {} \;
+- echo $TRAVIS_TAG > uw_oidc/VERSION
+deploy:
+  provider: pypi
+  user: uw-it-aca
+  skip_cleanup: true
+  password:
+    secure:
+  on:
+    tags: true
+    python: '3.6'
