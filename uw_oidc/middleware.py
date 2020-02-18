@@ -1,4 +1,5 @@
 from django.contrib import auth
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
 from uw_oidc.id_token import username_from_token
@@ -45,8 +46,9 @@ class IDTokenAuthenticationMiddleware:
                         request.session[self.TOKEN_SESSION_KEY] = auth_token
 
             except InvalidTokenError as ex:
-                return HttpResponse(status=401,
-                                    reason='Invalid token: {}'.format(ex))
+                return HttpResponse(
+                    status=int(getattr(settings, "TOKEN_ERR_CODE", 401)),
+                    reason='Invalid token: {}'.format(ex))
         else:
             if (request.user.is_authenticated and
                     self.TOKEN_SESSION_KEY in request.session):

@@ -5,9 +5,9 @@ from django.contrib.auth.middleware import AuthenticationMiddleware
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import ImproperlyConfigured
 from django.test.client import RequestFactory
+from unittest.mock import patch
 from uw_oidc.middleware import IDTokenAuthenticationMiddleware
 from uw_oidc.exceptions import InvalidTokenError
-import mock
 
 
 @override_settings(AUTHENTICATION_BACKENDS=[
@@ -15,7 +15,6 @@ import mock
 class TestMiddleware(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
-        self.user = User.objects.create_user(username='javerage')
 
     def tearDown(self):
         User.objects.all().delete()
@@ -37,46 +36,46 @@ class TestMiddleware(TestCase):
 
     def test_process_view_missing_session(self):
         request = self.factory.get('/')
-        middleware = IDTokenAuthenticationMiddleware(request)
+        middleware = IDTokenAuthenticationMiddleware()
         self.assertRaises(
             ImproperlyConfigured, middleware.process_view, request,
             None, None, None)
 
     def test_process_view_invalid_token(self):
         request = self.create_unauthenticated_request(auth_token='abc')
-        middleware = IDTokenAuthenticationMiddleware(request)
+        middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Not enough segments')
 
-    @mock.patch('uw_oidc.middleware.username_from_token')
+    @patch('uw_oidc.middleware.username_from_token')
     def test_process_view_invalid_username(self, mock_fn):
         mock_fn.return_value = ''
 
         request = self.create_unauthenticated_request(auth_token='abc')
-        middleware = IDTokenAuthenticationMiddleware(request)
+        middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Missing username')
 
-    @mock.patch('uw_oidc.middleware.username_from_token')
+    @patch('uw_oidc.middleware.username_from_token')
     def test_process_view_username_mismatch(self, mock_fn):
         mock_fn.return_value = 'bill'
 
         request = self.create_authenticated_request(auth_token='abc')
-        middleware = IDTokenAuthenticationMiddleware(request)
+        middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Username mismatch')
 
-    @mock.patch('uw_oidc.middleware.username_from_token')
+    @patch('uw_oidc.middleware.username_from_token')
     def test_process_view_successful_login(self, mock_fn):
         mock_fn.return_value = 'javerage'
 
         request = self.create_unauthenticated_request(auth_token='abc')
         self.assertEqual(request.user.is_authenticated, False)
 
-        middleware = IDTokenAuthenticationMiddleware(request)
+        middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
 
         # Check that user has been logged in, and token added to session
@@ -88,7 +87,7 @@ class TestMiddleware(TestCase):
     def test_process_view_invalid_session(self):
         request = self.create_authenticated_request()
 
-        middleware = IDTokenAuthenticationMiddleware(request)
+        middleware = IDTokenAuthenticationMiddleware()
         request.session[middleware.TOKEN_SESSION_KEY] = 'abc'
 
         response = middleware.process_view(request, None, None, None)
@@ -101,7 +100,7 @@ class TestMiddleware(TestCase):
 
     def test_clean_username(self):
         request = self.create_unauthenticated_request()
-        middleware = IDTokenAuthenticationMiddleware(request)
+        middleware = IDTokenAuthenticationMiddleware()
         self.assertRaises(InvalidTokenError, middleware.clean_username, None)
         self.assertRaises(InvalidTokenError, middleware.clean_username, '')
         self.assertEqual(middleware.clean_username('javerage'), 'javerage')
