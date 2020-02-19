@@ -45,11 +45,9 @@ class TestMiddleware(TestCase):
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Not enough segments')
 
-    @patch('uw_oidc.middleware.username_from_token')
     @override_settings(TOKEN_ERR_CODE=402)
+    @patch('uw_oidc.middleware.username_from_token', return_value='')
     def test_process_view_invalid_username(self, mock_fn):
-        mock_fn.return_value = ''
-
         request = self.create_unauthenticated_request(auth_token='abc')
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
@@ -57,11 +55,9 @@ class TestMiddleware(TestCase):
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Missing username')
 
-    @patch('uw_oidc.middleware.username_from_token')
     @override_settings(TOKEN_ERR_CODE=402)
+    @patch('uw_oidc.middleware.username_from_token', return_value='bill')
     def test_process_view_username_mismatch(self, mock_fn):
-        mock_fn.return_value = 'bill'
-
         request = self.create_authenticated_request(auth_token='abc')
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
@@ -69,19 +65,16 @@ class TestMiddleware(TestCase):
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Username mismatch')
 
-    @patch('uw_oidc.middleware.username_from_token')
+    @patch('uw_oidc.middleware.username_from_token',
+           spec=True, return_value='javerage')
     def test_process_view_already_authenticated(self, mock_fn):
-        mock_fn.return_value = 'javerage'
-
         request = self.create_authenticated_request(auth_token='abc')
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response, None)
 
-    @patch('uw_oidc.middleware.username_from_token')
+    @patch('uw_oidc.middleware.username_from_token', return_value='javerage')
     def test_process_view_authenticate(self, mock_fn):
-        mock_fn.return_value = 'javerage'
-
         request = self.create_unauthenticated_request(auth_token='abc')
         self.assertEqual(request.user.is_authenticated, False)
 
