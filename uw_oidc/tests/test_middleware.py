@@ -45,23 +45,21 @@ class TestMiddleware(TestCase):
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Not enough segments')
 
-    @override_settings(TOKEN_ERR_CODE=402)
     @patch('uw_oidc.middleware.username_from_token', return_value='')
     def test_process_view_invalid_username(self, mock_fn):
         request = self.create_unauthenticated_request(auth_token='abc')
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
-        self.assertEqual(response.status_code, 402)
+        self.assertEqual(response.status_code, 401)
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Missing username')
 
-    @override_settings(TOKEN_ERR_CODE=402)
     @patch('uw_oidc.middleware.username_from_token', return_value='bill')
     def test_process_view_username_mismatch(self, mock_fn):
         request = self.create_authenticated_request(auth_token='abc')
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
-        self.assertEqual(response.status_code, 402)
+        self.assertEqual(response.status_code, 401)
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Username mismatch')
 
