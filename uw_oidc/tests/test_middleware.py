@@ -12,6 +12,8 @@ from uw_oidc.exceptions import InvalidTokenError
 @override_settings(AUTHENTICATION_BACKENDS=[
     'django.contrib.auth.backends.RemoteUserBackend'])
 class TestMiddleware(TestCase):
+    KEY = 'test1234test1234test1234test1234'
+
     def setUp(self):
         self.factory = RequestFactory()
 
@@ -44,6 +46,22 @@ class TestMiddleware(TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Not enough segments')
+
+    @patch('uw_oidc.id_token.get_key', return_value=KEY)
+    def test_process_view_expired_token(self, mock_get_key):
+        expired_token = (
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ1d2lkcCIsImlhdCI'
+            '6MTU4MjE0NjA3MSwiZXhwIjoxNTgyMTQ2MDcxLCJhdWQiOiJteXV3Iiwic3ViIjo'
+            'iamF2ZXJhZ2UiLCJHaXZlbl9uYW1lIjoiSiIsIkZhbWlseV9uYW1lIjoiQXZlcmF'
+            'nZSIsIkVtYWlsIjoiamF2ZXJhZ2VAdXcuZWR1IiwiU2NvcGVkX2FmZmlsaWF0aW9'
+            'uIjoiZW1wbG95ZWUgbWVtYmVyIn0.EJjWjawYeKhUCKncaR0WQneS3WUcY_lSH5M'
+            'O288DEyI')
+        request = self.create_unauthenticated_request(auth_token=expired_token)
+        middleware = IDTokenAuthenticationMiddleware()
+        response = middleware.process_view(request, None, None, None)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.reason_phrase,
+                         'Invalid token: Signature has expired')
 
     @patch('uw_oidc.middleware.username_from_token', return_value='')
     def test_process_view_invalid_username(self, mock_fn):
