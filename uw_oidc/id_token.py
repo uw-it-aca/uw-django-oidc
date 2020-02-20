@@ -9,7 +9,6 @@ def decode_token(token):
     Return the decoded payload from the token
     raise Exception if not a valid token
     """
-    # print("TOKEN_JWT={}".format(token))
     try:
         return decode(token,
                       options={
