@@ -40,8 +40,9 @@ class TestMiddleware(TestCase):
             ImproperlyConfigured, middleware.process_view, request,
             None, None, None)
 
-    def test_process_view_invalid_token(self):
-        request = self.create_unauthenticated_request(auth_token='abc')
+    @patch.object(UWIdPToken, 'get_key', return_value=KEY)
+    def test_process_view_invalid_token(self, mock_get_key):
+        request = self.create_unauthenticated_request(auth_token='')
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.status_code, 401)
