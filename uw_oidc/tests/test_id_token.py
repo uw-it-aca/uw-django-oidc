@@ -1,10 +1,9 @@
 from django.test import TestCase, override_settings
 from unittest.mock import patch
-from uw_oidc.id_token import decode_token, username_from_token
+from uw_oidc.id_token import UWIdPToken
 
 
-@override_settings(
-    TOKEN_ISSUER='uwidp', TOKEN_AUDIENCE='myuw', TOKEN_LEEWAY=3)
+@override_settings(TOKEN_AUDIENCE='myuw', TOKEN_LEEWAY=3)
 class TestIdToken(TestCase):
     KEY = 'test1234test1234test1234test1234'
 
@@ -18,21 +17,17 @@ class TestIdToken(TestCase):
             'M-rbs1tU')
 
     @patch('uw_oidc.id_token.decode', spec=True)
-    @patch('uw_oidc.id_token.get_key', return_value=KEY)
+    @patch.object(UWIdPToken, 'get_key', return_value=KEY)
     def test_decode_token_call(self, mock_get_key, mock_decode):
-        result = decode_token('abc')
-        mock_decode.assert_called_once_with('abc', options={
-            'require_exp': True, 'require_iat': True, 'verify_signature': True,
-            'verify_iat': True, 'verify_exp': True, 'verify_iss': True,
-            'verify_aud': True},
-            algorithms=[
-                'RS256', 'RS384', 'RS512', 'HS256', 'HS384', 'HS512', 'ES256'],
-            key=self.KEY,
+        result = UWIdPToken('abc').decode_token()
+        mock_decode.assert_called_once_with(
+            'abc', options=UWIdPToken.JWT_OPTIONS,
+            algorithms=UWIdPToken.SIGNING_ALGORITHMS, key=self.KEY,
             audience='myuw', issuer='uwidp', leeway=3)
 
-    @patch('uw_oidc.id_token.get_key', return_value=KEY)
+    @patch.object(UWIdPToken, 'get_key', return_value=KEY)
     def test_decode_token_valid(self, mock_get_key):
-        self.assertEqual(decode_token(self.valid_token), {
+        self.assertEqual(UWIdPToken(self.valid_token).decode_token(), {
             'iss': 'uwidp',
             'aud': 'myuw',
             'sub': 'javerage',
@@ -43,6 +38,7 @@ class TestIdToken(TestCase):
             'Email': 'javerage@uw.edu',
             'Scoped_affiliation': 'employee member'})
 
-    @patch('uw_oidc.id_token.get_key', return_value=KEY)
+    @patch.object(UWIdPToken, 'get_key', return_value=KEY)
     def test_username_from_token(self, mock_get_key):
-        self.assertEqual(username_from_token(self.valid_token), 'javerage')
+        self.assertEqual(UWIdPToken(self.valid_token).username_from_token(),
+                         'javerage')
