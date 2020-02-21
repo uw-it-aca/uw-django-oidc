@@ -1,7 +1,6 @@
 from django.conf import settings
 from jwt import decode
 from jwt.exceptions import PyJWTError, InvalidSignatureError
-from uw_oidc.models import PublicKey
 from uw_oidc.exceptions import InvalidTokenError
 from restclients_core.dao import DAO
 from restclients_core.exceptions import DataFailureException
@@ -16,6 +15,11 @@ class UWIDP_DAO(DAO):
 
     def service_mock_paths(self):
         return [abspath(os.path.join(dirname(__file__), 'resources'))]
+
+    def delete_cache_key(self, url):
+        cache = self.get_cache()
+        cache_key = cache._get_key(self.service_name(), url)
+        cache.client.delete(cache_key)
 
 
 class UWIdPToken(object):
@@ -48,9 +52,9 @@ class UWIdPToken(object):
                           leeway=int(getattr(settings, 'TOKEN_LEEWAY', 1)))
 
         except InvalidSignatureError as ex:
-            self._update_key()
-            if self.get_key() != key:
+            if self.get_key(force_update=True) != key:
                 return self.decode_token()
+
             raise InvalidTokenError(ex)
 
         except PyJWTError as ex:
@@ -59,23 +63,13 @@ class UWIdPToken(object):
     def username_from_token(self):
         return self.decode_token().get('sub')
 
-    def get_key(self):
-        try:
-            return PublicKey.objects.latest('added_date').content
-        except PublicKey.DoesNotExist:
-            return self._update_key()
+    def get_key(self, force_update=False):
+        dao = UWIDP_DAO()
 
-    def _update_key(self):
-        try:
-            content = self._get_key_from_issuer()
-            if content:
-                key = PublicKey.objects.get_or_create(content=content)
-                return key.content
-        except DataFailureException as ex:
-            pass
+        if force_update:
+            dao.delete_cache_key(self.KEY_URL)
 
-    def _get_key_from_issuer(self):
-        response = UWIDP_DAO().getURL(
+        response = dao.getURL(
             self.KEY_URL, headers={'Accept': 'application/json'})
 
         if response.status != 200:
