@@ -1,7 +1,7 @@
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
-from uw_oidc.id_token import username_from_token
+from uw_oidc.id_token import UWIdPToken
 from uw_oidc.exceptions import InvalidTokenError
 
 
@@ -24,10 +24,10 @@ class IDTokenAuthenticationMiddleware:
                 'before "uw_oidc.middleware.IDTokenAuthenticationMiddleware".')
 
         if 'HTTP_AUTHORIZATION' in request.META:
-            auth_token = request.META['HTTP_AUTHORIZATION']
+            decoder = UWIdPToken(token=request.META['HTTP_AUTHORIZATION'])
 
             try:
-                username = self.clean_username(username_from_token(auth_token))
+                username = self.clean_username(decoder.username_from_token())
 
                 if request.user.is_authenticated:
                     if request.user.get_username() != username:
@@ -42,7 +42,7 @@ class IDTokenAuthenticationMiddleware:
                         # User is valid.  Set request.user and persist user
                         # in the session by logging the user in.
                         auth.login(request, user)
-                        request.session[self.TOKEN_SESSION_KEY] = auth_token
+                        request.session[self.TOKEN_SESSION_KEY] = decoder.token
 
             except InvalidTokenError as ex:
                 return HttpResponse(status=401,
