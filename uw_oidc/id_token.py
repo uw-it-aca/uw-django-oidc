@@ -1,82 +1,79 @@
 from django.conf import settings
-from jwt import decode
+from jwt import decode, get_unverified_header
 from jwt.exceptions import PyJWTError, InvalidSignatureError
-from uw_oidc.exceptions import InvalidTokenError
-from restclients_core.dao import DAO
-from restclients_core.exceptions import DataFailureException
-from os.path import abspath, dirname
-import os
-import json
-
-
-class UWIDP_DAO(DAO):
-    def service_name(self):
-        return 'uw_idp'
-
-    def service_mock_paths(self):
-        return [abspath(os.path.join(dirname(__file__), 'resources'))]
-
-    def delete_cache_key(self, url):
-        cache = self.get_cache()
-        cache_key = cache._get_key(self.service_name(), url)
-        cache.client.delete(cache_key)
+from uw_oidc.exceptions import (
+    InvalidTokenError, InvalidTokenHeader, NoMatchingPublicKey)
+from uw_oidc.jwks import UW_JWKS
 
 
 class UWIdPToken(object):
+    JWKS_CLIENT = UW_JWKS()
     JWT_OPTIONS = {
-        'require_exp': True, 'require_iat': True, 'verify_signature': True,
-        'verify_iat': True, 'verify_exp': True, 'verify_iss': True,
-        'verify_aud': True,
+        'require_exp': True, 'require_iat': True,
+        'verify_signature': True, 'verify_iat': True, 'verify_exp': True,
+        'verify_iss': True, 'verify_aud': True
     }
     SIGNING_ALGORITHMS = [
         'RS256', 'RS384', 'RS512', 'HS256', 'HS384', 'HS512', 'ES256'
     ]
-    KEY_URL = '/idp/profile/oidc/keyset'
 
-    def __init__(self, token):
+    def __init__(self):
+        self.TOKEN_AUDIENCE = getattr(settings, 'TOKEN_AUDIENCE')
+        self.TOKEN_ISSUER = getattr(settings, 'TOKEN_ISSUER')
+        self.TOKEN_LEEWAY = int(getattr(settings, 'TOKEN_LEEWAY', 1))
+        self.MAX_TRY = int(getattr(settings, 'VALIDATION_MAX_TRY', 2))
+
+    def username_from_token(self, token):
+        """
+        Raise InvalidTokenError or PyJWTError if not a valid token.
+        """
         self.token = token
+        self.key_id = self.extract_keyid()
+        return self.validate(0).get('sub')
 
-    def decode_token(self):
-        """
-        Return the decoded payload from the token, or raise InvalidTokenError
-        if not a valid token.
-        """
-        key = self.get_key()
+    def extract_keyid(self):
         try:
-            return decode(self.token,
-                          options=self.JWT_OPTIONS,
-                          key=key,
-                          algorithms=self.SIGNING_ALGORITHMS,
-                          issuer=getattr(settings, 'TOKEN_ISSUER', 'uwidp'),
-                          audience=getattr(settings, 'TOKEN_AUDIENCE', ''),
-                          leeway=int(getattr(settings, 'TOKEN_LEEWAY', 1)))
+            headers = get_unverified_header(self.token)
+        except PyJWTError as ex:
+            raise InvalidTokenHeader(ex)
 
+        if 'kid' not in headers:
+            raise InvalidTokenHeader(
+                "Token header missing kid property: {}".format(headers))
+
+        return headers['kid']
+
+    def validate(self, retry_ct):
+        """
+        Return the decoded payload from the token
+        Raise InvalidTokenError if not a valid token.
+        """
+        pubkey = self.get_key(retry_ct > 0)
+        if pubkey is None:
+            if retry_ct == 0:
+                return self.validate(retry_ct + 1)
+            raise NoMatchingPublicKey(
+                "No public key for token keyID: {}".format(self.key_id))
+
+        try:
+            return self.decode_token(pubkey)
         except InvalidSignatureError as ex:
-            if self.get_key(force_update=True) != key:
-                return self.decode_token()
-
-            raise InvalidTokenError(ex)
-
+            if retry_ct == self.MAX_TRY:
+                raise InvalidTokenError(ex)
+            return self.validate(retry_ct + 1)
         except PyJWTError as ex:
             raise InvalidTokenError(ex)
 
-    def username_from_token(self):
-        return self.decode_token().get('sub')
+    def get_key(self, force_update):
+        pub_key_dict = UWIdPToken.JWKS_CLIENT.get_jwks(
+            force_update=force_update)
+        return pub_key_dict.get(self.key_id)
 
-    def get_key(self, force_update=False):
-        dao = UWIDP_DAO()
-
-        if force_update:
-            dao.delete_cache_key(self.KEY_URL)
-
-        response = dao.getURL(
-            self.KEY_URL, headers={'Accept': 'application/json'})
-
-        if response.status != 200:
-            raise DataFailureException(
-                self.KEY_URL, response.status, response.data)
-
-        data = json.loads(response.data)
-        for key in data.get('keys', []):
-            # TODO
-            pass
+    def decode_token(self, pubkey):
+        return decode(self.token,
+                      options=self.JWT_OPTIONS,
+                      key=pubkey,
+                      algorithms=self.SIGNING_ALGORITHMS,
+                      issuer=self.TOKEN_ISSUER,
+                      audience=self.TOKEN_AUDIENCE,
+                      leeway=self.TOKEN_LEEWAY)

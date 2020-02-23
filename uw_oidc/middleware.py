@@ -24,10 +24,10 @@ class IDTokenAuthenticationMiddleware:
                 'before "uw_oidc.middleware.IDTokenAuthenticationMiddleware".')
 
         if 'HTTP_AUTHORIZATION' in request.META:
-            decoder = UWIdPToken(token=request.META['HTTP_AUTHORIZATION'])
-
             try:
-                username = self.clean_username(decoder.username_from_token())
+                token = request.META['HTTP_AUTHORIZATION']
+                username = self.clean_username(
+                    UWIdPToken().username_from_token(token))
 
                 if request.user.is_authenticated:
                     if request.user.get_username() != username:
@@ -42,7 +42,7 @@ class IDTokenAuthenticationMiddleware:
                         # User is valid.  Set request.user and persist user
                         # in the session by logging the user in.
                         auth.login(request, user)
-                        request.session[self.TOKEN_SESSION_KEY] = decoder.token
+                        request.session[self.TOKEN_SESSION_KEY] = token
 
             except InvalidTokenError as ex:
                 return HttpResponse(status=401,

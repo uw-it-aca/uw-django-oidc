@@ -22,9 +22,10 @@ setup(
     author_email="aca-it@uw.edu",
     include_package_data=True,
     install_requires=[
-        'Django>2.1,<3.0',
+        'Django>=2.0.13,<2.1',
         'UW-RestClients-Core>=1.2.1,<2.0',
-        'pyjwt'
+        'pyjwt',
+        'cryptography'
     ],
     license='Apache License, Version 2.0',
     description=('Midlleware handles Django request with UW OIDC id-token.'),
