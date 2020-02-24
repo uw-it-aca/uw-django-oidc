@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from jwt import decode, get_unverified_header
 from jwt.exceptions import PyJWTError, InvalidSignatureError
 from uw_oidc.exceptions import (
@@ -18,14 +19,15 @@ class UWIdPToken(object):
     ]
 
     def __init__(self):
-        self.TOKEN_AUDIENCE = getattr(settings, 'TOKEN_AUDIENCE')
-        self.TOKEN_ISSUER = getattr(settings, 'TOKEN_ISSUER')
-        self.TOKEN_LEEWAY = int(getattr(settings, 'TOKEN_LEEWAY', 1))
-        self.MAX_TRY = int(getattr(settings, 'VALIDATION_MAX_TRY', 2))
+        if (getattr(settings, 'TOKEN_ISSUER') is None or
+                getattr(settings, 'TOKEN_AUDIENCE') is None):
+            raise ImproperlyConfigured(
+                'You must have TOKEN_ISSUER and TOKEN_AUDIENCE'
+                ' in your project settings')
 
     def username_from_token(self, token):
         """
-        Raise InvalidTokenError or PyJWTError if not a valid token.
+        Raise InvalidTokenError if not a valid token.
         """
         self.token = token
         self.key_id = self.extract_keyid()
@@ -48,19 +50,18 @@ class UWIdPToken(object):
         Return the decoded payload from the token
         Raise InvalidTokenError if not a valid token.
         """
-        pubkey = self.get_key(retry_ct > 0)
+        pubkey = self.get_key(retry_ct == 1)
         if pubkey is None:
             if retry_ct == 0:
                 return self.validate(retry_ct + 1)
             raise NoMatchingPublicKey(
                 "No public key for token keyID: {}".format(self.key_id))
-
         try:
             return self.decode_token(pubkey)
         except InvalidSignatureError as ex:
-            if retry_ct == self.MAX_TRY:
-                raise InvalidTokenError(ex)
-            return self.validate(retry_ct + 1)
+            if retry_ct == 0:
+                return self.validate(retry_ct + 1)
+            raise InvalidTokenError(ex)
         except PyJWTError as ex:
             raise InvalidTokenError(ex)
 
@@ -74,6 +75,6 @@ class UWIdPToken(object):
                       options=self.JWT_OPTIONS,
                       key=pubkey,
                       algorithms=self.SIGNING_ALGORITHMS,
-                      issuer=self.TOKEN_ISSUER,
-                      audience=self.TOKEN_AUDIENCE,
-                      leeway=self.TOKEN_LEEWAY)
+                      issuer=getattr(settings, 'TOKEN_ISSUER'),
+                      audience=getattr(settings, 'TOKEN_AUDIENCE'),
+                      leeway=int(getattr(settings, 'TOKEN_LEEWAY', 1)))

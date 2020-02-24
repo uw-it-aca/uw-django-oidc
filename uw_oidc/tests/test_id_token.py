@@ -99,13 +99,13 @@ class TestIdToken(TestCase):
         # Failed to validate signature
         mock_get_jwks.return_value = {'sdxywn': 'b'}
         self.assertRaises(InvalidTokenError, self.decoder.validate, 0)
-        self.assertEqual(mock_get_jwks.call_count, 6)
+        self.assertEqual(mock_get_jwks.call_count, 5)
 
         # Failed to validate token
         self.decoder.token = 'abc'
         mock_get_jwks.return_value = {'sdxywn': self.KEY}
         self.assertRaises(InvalidTokenError, self.decoder.validate, 0)
-        self.assertEqual(mock_get_jwks.call_count, 7)
+        self.assertEqual(mock_get_jwks.call_count, 6)
 
     @patch.object(UWIdPToken, 'extract_keyid', return_value='sdxywn')
     @patch.object(UWIdPToken, 'get_key')
