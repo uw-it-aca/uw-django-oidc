@@ -1,7 +1,7 @@
 import json
 import os
 from os.path import abspath, dirname
-from jwt.algorithm import RSAAlgorithm
+from jwt.algorithms import RSAAlgorithm
 from restclients_core.dao import DAO
 from uw_oidc.exceptions import JwksDataError, JwksFetchError
 
