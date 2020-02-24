@@ -30,7 +30,7 @@ class UWIdPToken(object):
         Raise InvalidTokenError if not a valid token.
         """
         self.token = token
-        self.key_id = self.extract_keyid()
+        self.key_id, self.alg = self.extract_keyid()
         return self.validate().get('sub')
 
     def extract_keyid(self):
@@ -39,11 +39,10 @@ class UWIdPToken(object):
         except PyJWTError as ex:
             raise InvalidTokenHeader(ex)
 
-        if 'kid' not in headers:
-            raise InvalidTokenHeader(
-                "Token header missing kid property: {}".format(headers))
+        if 'kid' not in headers or 'alg' not in headers:
+            raise InvalidTokenHeader("Missing properties: {}".format(headers))
 
-        return headers['kid']
+        return headers['kid'], headers['alg']
 
     def validate(self, refresh_keys=False):
         """
@@ -66,9 +65,8 @@ class UWIdPToken(object):
             raise InvalidTokenError(ex)
 
     def get_key(self, force_update):
-        pub_key_dict = UWIdPToken.JWKS_CLIENT.get_jwks(
-            force_update=force_update)
-        return pub_key_dict.get(self.key_id)
+        return UWIdPToken.JWKS_CLIENT.get_pubkey(
+            self.key_id, self.alg, force_update=force_update)
 
     def decode_token(self, pubkey):
         return decode(self.token,

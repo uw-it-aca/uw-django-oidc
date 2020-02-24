@@ -3,9 +3,7 @@ import os
 from os.path import abspath, dirname
 from restclients_core.dao import DAO
 from uw_oidc.exceptions import JwksDataError, JwksFetchError
-
-has_crypto = True
-from jwt.algorithms import RSAAlgorithm
+from jwt.algorithms import get_default_algorithms, has_crypto, InvalidKeyError
 
 
 class UWIDP_DAO(DAO):
@@ -22,11 +20,10 @@ class UWIDP_DAO(DAO):
 
 
 class UW_JWKS(object):
-    dao = UWIDP_DAO()
-    rsaa = RSAAlgorithm(RSAAlgorithm.SHA256)
     JWKS_PATH = '/idp/profile/oidc/keyset'
+    dao = UWIDP_DAO()
 
-    def get_jwks(self, force_update=False):
+    def get_jwks(self, force_update):
         """
         return a dictionary of {kid_value: rsa_public_key}.
         raise InvalidTokenError if access or data failure
@@ -41,12 +38,14 @@ class UW_JWKS(object):
                 "Error fetching %s.  Status code: %s.  Message: %s.".format(
                     self.JWKS_PATH, response.status, response.data))
 
-        return self.filter_keys(response.data)
+        return response.data
 
-    def filter_keys(self, resp_data):
+    def get_pubkey(self, keyid, alg, force_update=False):
         """
-        Extract RSA keys
+        Extract the public key coresponding to the keyid
         """
+        resp_data = self.get_jwks(force_update)
+
         try:
             json_wks = json.loads(resp_data)
         except Exception as ex:
@@ -55,13 +54,13 @@ class UW_JWKS(object):
         if 'keys' not in json_wks:
             raise JwksDataError("No 'keys': {}".format(resp_data))
 
-        pub_key_dict = {}
+        has_crypto = len(alg)
+        rsaa = get_default_algorithms().get(alg)
+
         for key in json_wks['keys']:
             try:
-                if ('RSA' == key.get('kty') and "sig" == key.get('use') and
-                        len(key.get('kid')) and 'n' in key and 'e' in key):
-                    pub_key_dict[key['kid']] = self.rsaa.from_jwk(
-                        json.dumps(key))
+                if key.get('kid') == keyid:
+                    return rsaa.from_jwk(json.dumps(key))
             except InvalidKeyError as ex:
                 raise JwksDataError(ex)
-        return pub_key_dict
+        return None
