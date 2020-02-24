@@ -1,11 +1,7 @@
-from base64 import urlsafe_b64decode
-from binascii import hexlify
 import json
-import struct
 import os
 from os.path import abspath, dirname
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers
+from jwt.algorithm import RSAAlgorithm
 from restclients_core.dao import DAO
 from uw_oidc.exceptions import JwksDataError, JwksFetchError
 
@@ -25,6 +21,7 @@ class UWIDP_DAO(DAO):
 
 class UW_JWKS(object):
     dao = UWIDP_DAO()
+    rsaa = RSAAlgorithm(RSAAlgorithm.SHA256)
     JWKS_PATH = '/idp/profile/oidc/keyset'
 
     def get_jwks(self, force_update=False):
@@ -58,25 +55,11 @@ class UW_JWKS(object):
 
         pub_key_dict = {}
         for key in json_wks['keys']:
-            if ('RSA' == key.get('kty') and
-                    "sig" == key.get('use') and
-                    len(key.get('kid'))):
-
-                # e: the exponent for a standard pem
-                # n: the moduluos for a standard pem
-                if 'n' not in key or 'e' not in key:
-                    raise JwksDataError(
-                        'Missing key property: {}'.format(key))
-                try:
-                    rsa_pub = RSAPublicNumbers(decode(key['e']),
-                                               decode(key['n']))
-                    pub_key_dict[key['kid']] = rsa_pub.public_key(
-                        default_backend())
-                except Exception as ex:
-                    raise JwksDataError('Invalid RSA key: {}'.format(ex))
+            try:
+                if ('RSA' == key.get('kty') and "sig" == key.get('use') and
+                        len(key.get('kid')) and 'n' in key and 'e' in key):
+                    pub_key_dict[key['kid']] = self.rsaa.from_jwk(
+                        json.dumps(key))
+            except InvalidKeyError as ex:
+                raise JwksDataError(ex)
         return pub_key_dict
-
-
-def decode(key_str):
-    val = urlsafe_b64decode(key_str.encode('utf-8'))
-    return int(hexlify(val), 16)

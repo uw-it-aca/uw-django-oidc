@@ -7,7 +7,7 @@ class TestUW_JWKS(TestCase):
     def setUp(self):
         self.jwks = UW_JWKS()
 
-    def test_get_public_key(self):
+    def test_filter_keys(self):
         pass
 
     def test_get_jwks(self):
