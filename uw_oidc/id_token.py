@@ -31,7 +31,7 @@ class UWIdPToken(object):
         """
         self.token = token
         self.key_id = self.extract_keyid()
-        return self.validate(0).get('sub')
+        return self.validate().get('sub')
 
     def extract_keyid(self):
         try:
@@ -45,22 +45,22 @@ class UWIdPToken(object):
 
         return headers['kid']
 
-    def validate(self, retry_ct):
+    def validate(self, refresh_keys=False):
         """
         Return the decoded payload from the token
         Raise InvalidTokenError if not a valid token.
         """
-        pubkey = self.get_key(retry_ct == 1)
+        pubkey = self.get_key(refresh_keys)
         if pubkey is None:
-            if retry_ct == 0:
-                return self.validate(retry_ct + 1)
+            if refresh_keys is False:
+                return self.validate(refresh_keys=True)
             raise NoMatchingPublicKey(
-                "No public key for token keyID: {}".format(self.key_id))
+                "No matching key for token keyID: {}".format(self.key_id))
         try:
             return self.decode_token(pubkey)
         except InvalidSignatureError as ex:
-            if retry_ct == 0:
-                return self.validate(retry_ct + 1)
+            if refresh_keys is False:
+                return self.validate(refresh_keys=True)
             raise InvalidTokenError(ex)
         except PyJWTError as ex:
             raise InvalidTokenError(ex)
