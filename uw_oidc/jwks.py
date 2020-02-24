@@ -1,9 +1,11 @@
 import json
 import os
 from os.path import abspath, dirname
-from jwt.algorithms import RSAAlgorithm
 from restclients_core.dao import DAO
 from uw_oidc.exceptions import JwksDataError, JwksFetchError
+
+has_crypto = True
+from jwt.algorithms import RSAAlgorithm
 
 
 class UWIDP_DAO(DAO):

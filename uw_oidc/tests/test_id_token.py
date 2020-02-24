@@ -87,24 +87,24 @@ class TestIdToken(TestCase):
 
         # successful
         mock_get_jwks.return_value = {'sdxywn': self.KEY}
-        result = self.decoder.validate(0)
+        result = self.decoder.validate()
         self.assertTrue('sub' in result)
         self.assertEqual(mock_get_jwks.call_count, 1)
 
         # no public key
         mock_get_jwks.return_value = {'a': 'b'}
-        self.assertRaises(NoMatchingPublicKey, self.decoder.validate, 0)
+        self.assertRaises(NoMatchingPublicKey, self.decoder.validate)
         self.assertEqual(mock_get_jwks.call_count, 3)
 
         # Failed to validate signature
         mock_get_jwks.return_value = {'sdxywn': 'b'}
-        self.assertRaises(InvalidTokenError, self.decoder.validate, 0)
+        self.assertRaises(InvalidTokenError, self.decoder.validate)
         self.assertEqual(mock_get_jwks.call_count, 5)
 
         # Failed to validate token
         self.decoder.token = 'abc'
         mock_get_jwks.return_value = {'sdxywn': self.KEY}
-        self.assertRaises(InvalidTokenError, self.decoder.validate, 0)
+        self.assertRaises(InvalidTokenError, self.decoder.validate)
         self.assertEqual(mock_get_jwks.call_count, 6)
 
     @patch.object(UWIdPToken, 'extract_keyid', return_value='sdxywn')
