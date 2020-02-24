@@ -7,8 +7,7 @@ from os.path import abspath, dirname
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers
 from restclients_core.dao import DAO
-from uw_oidc.exceptions import (
-    JwksFetchError, JwksDataInvalidJson, JwksDataMissingProperty)
+from uw_oidc.exceptions import JwksDataError, JwksFetchError
 
 
 class UWIDP_DAO(DAO):
@@ -31,7 +30,7 @@ class UW_JWKS(object):
     def get_jwks(self, force_update=False):
         """
         return a dictionary of {kid_value: rsa_public_key}.
-        raise JwksDataFailure if access
+        raise InvalidTokenError if access or data failure
         """
         if force_update:
             self.dao.delete_cache_key(self.JWKS_PATH)
@@ -43,16 +42,19 @@ class UW_JWKS(object):
                 "Error fetching %s.  Status code: %s.  Message: %s.".format(
                     self.JWKS_PATH, response.status, response.data))
 
-        return self.get_public_key(response.data)
+        return self.filter_keys(response.data)
 
-    def get_public_key(self, resp_data):
+    def filter_keys(self, resp_data):
+        """
+        Extract RSA keys
+        """
         try:
             json_wks = json.loads(resp_data)
         except Exception as ex:
             raise JwksDataInvalidJson(ex)
 
         if 'keys' not in json_wks:
-            raise JwksDataMissingProperty("No 'keys': {}".format(resp_data))
+            raise JwksDataError("No 'keys': {}".format(resp_data))
 
         pub_key_dict = {}
         for key in json_wks['keys']:
@@ -63,29 +65,18 @@ class UW_JWKS(object):
                 # e: the exponent for a standard pem
                 # n: the moduluos for a standard pem
                 if 'n' not in key or 'e' not in key:
-                    raise JwksDataMissingProperty(
-                        'Invalid RSA key: {}'.format(key))
-
+                    raise JwksDataError(
+                        'Missing key property: {}'.format(key))
                 try:
-                    rsa_pub = RSAPublicNumbers(decode_int(key['e']),
-                                               decode_int(key['n']))
+                    rsa_pub = RSAPublicNumbers(decode(key['e']),
+                                               decode(key['n']))
                     pub_key_dict[key['kid']] = rsa_pub.public_key(
                         default_backend())
                 except Exception as ex:
-                    raise InvalidJwkError('Invalid RSA key: {}'.format(ex))
+                    raise JwksDataError('Invalid RSA key: {}'.format(ex))
         return pub_key_dict
 
 
-def decode_int(val):
-    return int(hexlify(base64url_decode(n)), 16)
-
-
-def base64url_decode(payload):
-    size = len(payload) % 4
-    if size == 2:
-        payload += '=='
-    elif size == 3:
-        payload += '='
-    elif size != 0:
-        raise ValueError('Invalid base64 string')
-    return urlsafe_b64decode(payload.encode('utf-8'))
+def decode(key_str):
+    val = urlsafe_b64decode(key_str.encode('utf-8'))
+    return int(hexlify(val), 16)

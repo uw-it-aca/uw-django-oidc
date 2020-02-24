@@ -1,7 +1,6 @@
 from django.test import TestCase
 from unittest.mock import patch
-from uw_oidc.jwks import (
-    UW_JWKS, JwksFetchError, JwksDataInvalidJson, JwksDataMissingProperty)
+from uw_oidc.jwks import UW_JWKS, JwksFetchError, JwksDataError
 
 
 class TestUW_JWKS(TestCase):

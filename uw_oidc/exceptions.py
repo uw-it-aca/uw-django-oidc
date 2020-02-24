@@ -19,9 +19,5 @@ class JwksFetchError(InvalidTokenError):
     pass
 
 
-class JwksDataInvalidJson(InvalidTokenError):
-    pass
-
-
-class JwksDataMissingProperty(InvalidTokenError):
+class JwksDataError(InvalidTokenError):
     pass
