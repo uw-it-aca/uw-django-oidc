@@ -35,8 +35,8 @@ class UWIDP_DAO(DAO):
                                headers={'Accept': 'application/json'})
         if response.status != 200:
             logger.error(
-                "JwksFetchError url: {}. Status code: {} Message: {}".format(
-                UWIDP_DAO.URL, response.status, response.data))
+                "JwksFetchError on {} Status code: {} Message: {}".format(
+                    UWIDP_DAO.URL, response.status, response.data))
             raise JwksFetchError()
         return response.data
 
