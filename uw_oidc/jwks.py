@@ -2,7 +2,8 @@ import json
 import os
 import logging
 from os.path import abspath, dirname
-from jwt.algorithms import get_default_algorithms, has_crypto, InvalidKeyError
+from jwcrypto.jwk import JWK
+from jwcrypto.common import JWException
 from restclients_core.dao import DAO
 from uw_oidc.exceptions import (
     JwksDataError, JwksFetchError, JwksDataInvalidJson)
@@ -48,7 +49,7 @@ class UW_JWKS(object):
         if self.dao is None:
             self.dao = UWIDP_DAO()
 
-    def get_pubkey(self, keyid, alg, force_update=False):
+    def get_pubkey(self, keyid, force_update=False):
         """
         Extract the public key coresponding to the keyid
         """
@@ -64,14 +65,11 @@ class UW_JWKS(object):
             logger.error("JwksDataError: missing keys {}".format(json_wks))
             raise JwksDataError("No keys")
 
-        has_crypto = len(alg)
-        rsaa = get_default_algorithms().get(alg)
-
         for key in json_wks['keys']:
             try:
-                if key.get('kid') == keyid:
-                    return rsaa.from_jwk(json.dumps(key))
-            except InvalidKeyError as ex:
+                if key['kty'] == "RSA" and key.get('kid') == keyid:
+                    return JWK(**key).export_to_pem()
+            except JWException as ex:
                 logger.error("JwksDataError {} {}".format(ex, key))
                 raise JwksDataError(ex)
         return None

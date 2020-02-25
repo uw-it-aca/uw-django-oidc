@@ -64,9 +64,8 @@ class TestIdToken(TestCase):
         mock_get_unverified_header.return_value = {'kid': 'sdxywn',
                                                    "alg": "RS256",
                                                    "typ": "JWT"}
-        key, alg = self.decoder.extract_keyid()
+        key = self.decoder.extract_keyid()
         self.assertEqual(key, 'sdxywn')
-        self.assertEqual(alg, "RS256")
 
         # header without key id
         mock_get_unverified_header.return_value = {"alg": "RS256",
@@ -81,14 +80,12 @@ class TestIdToken(TestCase):
     @patch.object(UWIdPToken.JWKS_CLIENT, 'get_pubkey', return_value='a')
     def test_get_key(self, mock_get_pubkey):
         self.decoder.key_id = 'sdxywn'
-        self.decoder.alg = "RS256"
         self.assertEqual(self.decoder.get_key(False), 'a')
 
     @patch.object(UWIdPToken.JWKS_CLIENT, 'get_pubkey', spec=True)
     def test_validate(self, mock_get_pubkey):
         self.decoder.token = self.valid_token
         self.decoder.key_id = 'sdxywn'
-        self.decoder.alg = "RS256"
 
         # successful
         mock_get_pubkey.return_value = self.KEY
@@ -112,8 +109,7 @@ class TestIdToken(TestCase):
         self.assertRaises(InvalidTokenError, self.decoder.validate)
         self.assertEqual(mock_get_pubkey.call_count, 6)
 
-    @patch.object(UWIdPToken, 'extract_keyid',
-                  return_value=('sdxywn', "RS256"))
+    @patch.object(UWIdPToken, 'extract_keyid', return_value='sdxywn')
     @patch.object(UWIdPToken, 'get_key')
     @patch.object(UWIdPToken, 'decode_token', return_value={'sub': 'javerage'})
     def test_username_from_token(self, mock_extract_keyid, mock_get_key,

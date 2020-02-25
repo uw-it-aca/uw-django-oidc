@@ -17,6 +17,9 @@ class UWIdPToken(object):
         'verify_signature': True, 'verify_iat': True, 'verify_exp': True,
         'verify_iss': True, 'verify_aud': True
     }
+    # To avoid algorithm confusion attacks, always specify only
+    # the algorithm expected to use for token signature validation.
+    # the list below may need to be narrowed down
     SIGNING_ALGORITHMS = [
         'RS256', 'RS384', 'RS512', 'HS256', 'HS384', 'HS512', 'ES256'
     ]
@@ -31,7 +34,7 @@ class UWIdPToken(object):
         Raise InvalidTokenError if not a valid token.
         """
         self.token = token
-        self.key_id, self.alg = self.extract_keyid()
+        self.key_id = self.extract_keyid()
         return self.validate().get('sub')
 
     def extract_keyid(self):
@@ -40,12 +43,12 @@ class UWIdPToken(object):
         except PyJWTError as ex:
             raise InvalidTokenHeader(ex)
 
-        if 'kid' not in headers or 'alg' not in headers:
-            logger.error(
-                "InvalidTokenHeader: missing properties: {}".format(headers))
+        if (headers.get('kid') is None or headers.get('alg') is None or
+                not len(headers['kid']) or not len(headers['alg'])):
+            logger.error("InvalidTokenHeader: {}".format(headers))
             raise InvalidTokenHeader("{}".format(headers))
 
-        return headers['kid'], headers['alg']
+        return headers['kid']
 
     def validate(self, refresh_keys=False):
         """
@@ -56,7 +59,7 @@ class UWIdPToken(object):
         if pubkey is None:
             if refresh_keys is False:
                 return self.validate(refresh_keys=True)
-            logger.error("NoMatchingPublicKey for key-id: {}".format(
+            logger.error("NoMatchingPublicKey for kid: {}".format(
                 self.key_id))
             raise NoMatchingPublicKey(self.key_id)
 
@@ -73,7 +76,7 @@ class UWIdPToken(object):
 
     def get_key(self, force_update):
         return UWIdPToken.JWKS_CLIENT.get_pubkey(
-            self.key_id, self.alg, force_update=force_update)
+            self.key_id, force_update=force_update)
 
     def decode_token(self, pubkey):
         return decode(self.token,
