@@ -24,7 +24,7 @@ setup(
     install_requires=[
         'Django>2.1,<3.0',
         'UW-RestClients-Core>=1.2.1,<2.0',
-        'pyjwt'
+        'pyjwt>=1.7.1,<2.0'
     ],
     license='Apache License, Version 2.0',
     description=('Midlleware handles Django request with UW OIDC id-token.'),
