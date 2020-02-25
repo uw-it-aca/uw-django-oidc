@@ -1,27 +1,28 @@
 import json
 import os
+import logging
 from os.path import abspath, dirname
-from restclients_core.dao import DAO
-from uw_oidc.exceptions import JwksDataError, JwksFetchError
 from jwt.algorithms import get_default_algorithms, has_crypto, InvalidKeyError
+from restclients_core.dao import DAO
+from uw_oidc.exceptions import (
+    JwksDataError, JwksFetchError, JwksDataInvalidJson)
+
+logger = logging.getLogger(__name__)
 
 
 class UWIDP_DAO(DAO):
+    URL = '/idp/profile/oidc/keyset'
+
     def service_name(self):
         return 'uw_idp'
 
     def service_mock_paths(self):
         return [abspath(os.path.join(dirname(__file__), 'resources'))]
 
-    def delete_cache_key(self, url):
+    def delete_cache_key(self):
         cache = self.get_cache()
-        cache_key = cache._get_key(self.service_name(), url)
+        cache_key = cache._get_key(self.service_name(), UWIDP_DAO.URL)
         cache.client.delete(cache_key)
-
-
-class UW_JWKS(object):
-    JWKS_PATH = '/idp/profile/oidc/keyset'
-    dao = UWIDP_DAO()
 
     def get_jwks(self, force_update):
         """
@@ -29,30 +30,39 @@ class UW_JWKS(object):
         raise InvalidTokenError if access or data failure
         """
         if force_update:
-            self.dao.delete_cache_key(self.JWKS_PATH)
-
-        response = self.dao.getURL(self.JWKS_PATH,
-                                   headers={'Accept': 'application/json'})
+            self.delete_cache_key()
+        response = self.getURL(UWIDP_DAO.URL,
+                               headers={'Accept': 'application/json'})
         if response.status != 200:
-            raise JwksFetchError(
-                "Error fetching %s.  Status code: %s.  Message: %s.".format(
-                    self.JWKS_PATH, response.status, response.data))
-
+            logger.error(
+                "JwksFetchError url: {}. Status code: {} Message: {}".format(
+                UWIDP_DAO.URL, response.status, response.data))
+            raise JwksFetchError()
         return response.data
+
+
+class UW_JWKS(object):
+
+    def __init__(self, dao_for_jwks=None):
+        self.dao = dao_for_jwks
+        if self.dao is None:
+            self.dao = UWIDP_DAO()
 
     def get_pubkey(self, keyid, alg, force_update=False):
         """
         Extract the public key coresponding to the keyid
         """
-        resp_data = self.get_jwks(force_update)
+        resp_data = self.dao.get_jwks(force_update)
 
         try:
             json_wks = json.loads(resp_data)
         except Exception as ex:
+            logger.error("JwksDataInvalidJson {} {}".format(ex, resp_data))
             raise JwksDataInvalidJson(ex)
 
         if 'keys' not in json_wks:
-            raise JwksDataError("No 'keys': {}".format(resp_data))
+            logger.error("JwksDataError: missing keys {}".format(json_wks))
+            raise JwksDataError("No keys")
 
         has_crypto = len(alg)
         rsaa = get_default_algorithms().get(alg)
@@ -62,5 +72,6 @@ class UW_JWKS(object):
                 if key.get('kid') == keyid:
                     return rsaa.from_jwk(json.dumps(key))
             except InvalidKeyError as ex:
+                logger.error("JwksDataError {} {}".format(ex, key))
                 raise JwksDataError(ex)
         return None

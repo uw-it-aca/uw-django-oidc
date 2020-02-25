@@ -21,3 +21,7 @@ class JwksFetchError(InvalidTokenError):
 
 class JwksDataError(InvalidTokenError):
     pass
+
+
+class JwksDataInvalidJson(JwksDataError):
+    pass

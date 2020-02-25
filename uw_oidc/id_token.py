@@ -1,3 +1,4 @@
+import logging
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from jwt import decode, get_unverified_header
@@ -5,6 +6,8 @@ from jwt.exceptions import PyJWTError, InvalidSignatureError
 from uw_oidc.exceptions import (
     InvalidTokenError, InvalidTokenHeader, NoMatchingPublicKey)
 from uw_oidc.jwks import UW_JWKS
+
+logger = logging.getLogger(__name__)
 
 
 class UWIdPToken(object):
@@ -19,11 +22,9 @@ class UWIdPToken(object):
     ]
 
     def __init__(self):
-        if (getattr(settings, 'TOKEN_ISSUER') is None or
-                getattr(settings, 'TOKEN_AUDIENCE') is None):
+        if getattr(settings, 'TOKEN_AUDIENCE') is None:
             raise ImproperlyConfigured(
-                'You must have TOKEN_ISSUER and TOKEN_AUDIENCE'
-                ' in your project settings')
+                'You must have TOKEN_AUDIENCE in your project settings')
 
     def username_from_token(self, token):
         """
@@ -40,7 +41,9 @@ class UWIdPToken(object):
             raise InvalidTokenHeader(ex)
 
         if 'kid' not in headers or 'alg' not in headers:
-            raise InvalidTokenHeader("Missing properties: {}".format(headers))
+            logger.error(
+                "InvalidTokenHeader: missing properties: {}".format(headers))
+            raise InvalidTokenHeader("{}".format(headers))
 
         return headers['kid'], headers['alg']
 
@@ -53,15 +56,19 @@ class UWIdPToken(object):
         if pubkey is None:
             if refresh_keys is False:
                 return self.validate(refresh_keys=True)
-            raise NoMatchingPublicKey(
-                "No matching key for token keyID: {}".format(self.key_id))
+            logger.error("NoMatchingPublicKey for key-id: {}".format(
+                self.key_id))
+            raise NoMatchingPublicKey(self.key_id)
+
         try:
             return self.decode_token(pubkey)
         except InvalidSignatureError as ex:
             if refresh_keys is False:
                 return self.validate(refresh_keys=True)
+            logger.error("{} on token: {}".format(ex, self.token))
             raise InvalidTokenError(ex)
         except PyJWTError as ex:
+            logger.error("{} on token {}".format(ex, self.token))
             raise InvalidTokenError(ex)
 
     def get_key(self, force_update):
@@ -73,6 +80,7 @@ class UWIdPToken(object):
                       options=self.JWT_OPTIONS,
                       key=pubkey,
                       algorithms=self.SIGNING_ALGORITHMS,
-                      issuer=getattr(settings, 'TOKEN_ISSUER'),
+                      issuer=getattr(settings, 'TOKEN_ISSUER',
+                                     "urn:mace:incommon:washington.edu:eval"),
                       audience=getattr(settings, 'TOKEN_AUDIENCE'),
                       leeway=int(getattr(settings, 'TOKEN_LEEWAY', 1)))
