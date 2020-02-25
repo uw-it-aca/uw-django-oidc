@@ -43,9 +43,8 @@ class UWIdPToken(object):
         except PyJWTError as ex:
             raise InvalidTokenHeader(ex)
 
-        if (headers.get('kid') is None or headers.get('alg') is None or
-                not len(headers['kid']) or not len(headers['alg'])):
-            logger.error("InvalidTokenHeader: {}".format(headers))
+        if headers.get('kid') is None or not len(headers['kid']):
+            logger.error("InvalidTokenHeader: missing kid {}".format(headers))
             raise InvalidTokenHeader("{}".format(headers))
 
         return headers['kid']
