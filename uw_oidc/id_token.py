@@ -2,7 +2,6 @@ import logging
 from calendar import timegm
 from datetime import datetime, timedelta, timezone
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 from jwt import decode, get_unverified_header
 from jwt.exceptions import PyJWTError, InvalidSignatureError
 from uw_oidc.exceptions import (
@@ -22,11 +21,6 @@ class UWIdPToken(object):
     # To avoid algorithm confusion attacks, always specify only
     # the algoriths expected to use for token signature validation.
     SIGNING_ALGORITHMS = ['RS256', 'RS384', 'RS512', 'ES256']
-
-    def __init__(self):
-        if getattr(settings, 'UW_TOKEN_AUDIENCE') is None:
-            raise ImproperlyConfigured(
-                'You must have TOKEN_AUDIENCE in your project settings')
 
     def username_from_token(self, token):
         """
@@ -88,13 +82,13 @@ class UWIdPToken(object):
             issuer=getattr(settings, 'UW_TOKEN_ISSUER',
                            "https://idp-eval.u.washington.edu"),
             audience=getattr(settings, 'UW_TOKEN_AUDIENCE'),
-            leeway=int(getattr(settings, 'UW_TOKEN_LEEWAY', 1)))  # sec
+            leeway=int(getattr(settings, 'UW_TOKEN_LEEWAY', 1)))
 
     def valid_auth_time(self):
         """
         Raise InvalidTokenError if the id-token is not fresh enough
         """
-        timeout = int(getattr(settings, 'UW_TOKEN_MAX_AGE', 300))  # sec
+        timeout = int(getattr(settings, 'UW_TOKEN_MAX_AGE', 300))
         age_limit = timegm(datetime.utcnow().utctimetuple()) - timeout
         try:
             return int(self.payload['auth_time']) >= age_limit
