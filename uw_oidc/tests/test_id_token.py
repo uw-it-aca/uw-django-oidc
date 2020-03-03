@@ -59,15 +59,18 @@ class TestIdToken(TestCase):
     def test_validate(self):
         # expired signature
         self.decoder.key_id = self.decoder.extract_keyid()
-        self.assertRaises(InvalidTokenError, self.decoder.validate)
         try:
             result = self.decoder.validate()
-        except Exception as ex:
+        except InvalidTokenError as ex:
             self.assertEqual(str(ex), "Signature has expired")
 
         # alg value is not allowed
         self.decoder.token = self.bad_token
         self.assertRaises(InvalidTokenError, self.decoder.validate)
+
+        with patch.object(UWIdPToken, 'get_key', return_value=None) as mock:
+            self.assertRaises(NoMatchingPublicKey, self.decoder.validate)
+            self.assertEqual(mock.call_count, 2)
 
     def test_valid_auth_time(self):
         self.decoder.payload = {'sub': 'javerage',
@@ -88,3 +91,7 @@ class TestIdToken(TestCase):
             'auth_time': timegm(datetime.utcnow().utctimetuple())}
         self.assertEqual(self.decoder.username_from_token(self.id_token),
                          'javerage')
+        # AuthTimedOut
+        mock_decode_token.return_value['auth_time'] -= 121
+        self.assertRaises(InvalidTokenError, self.decoder.username_from_token,
+                          self.id_token)
