@@ -1,9 +1,12 @@
+import logging
 from django.contrib import auth
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
 from uw_oidc.id_token import UWIdPToken
 from uw_oidc.exceptions import InvalidTokenError
+
+logger = logging.getLogger(__name__)
 
 
 class IDTokenAuthenticationMiddleware:
@@ -12,7 +15,7 @@ class IDTokenAuthenticationMiddleware:
     based request authentication for specified clients.
     """
     TOKEN_SESSION_KEY = 'uw_oidc_idtoken'
-    DEVICE_ID_KEY = 'client_device_id'
+    DEVICE_ID_KEY = 'uw_uuid'
 
     def __init__(self, get_response=None):
         self.get_response = get_response
@@ -39,9 +42,10 @@ class IDTokenAuthenticationMiddleware:
                         if self.TOKEN_SESSION_KEY in request.session:
                             del request.session[self.TOKEN_SESSION_KEY]
                         auth.logout(request)
-                        raise InvalidTokenError('Disabled')
+                        raise InvalidTokenError('Blocked')
 
                     if device_id == req_device_id:
+                        logger.info("Uphold {}".format(req_device_id))
                         return None
 
                 # We are seeing this user for the first time in this
@@ -57,7 +61,7 @@ class IDTokenAuthenticationMiddleware:
                     auth.login(request, user)
                     request.session[self.TOKEN_SESSION_KEY] = token
                     request.session[self.DEVICE_ID_KEY] = req_device_id
-
+                    logger.info("Authenticated {}".format(req_device_id))
             except InvalidTokenError as ex:
                 return HttpResponse(status=401,
                                     reason='Invalid token: {}'.format(ex))
@@ -83,5 +87,5 @@ class IDTokenAuthenticationMiddleware:
         return username
 
     def disabled(self, device_id):
-        black_list = getattr(settings, 'UW_DEVICE_BLIST', [])
+        black_list = getattr(settings, 'UW_DISABLED_UUID', [])
         return len(black_list) and device_id and device_id in black_list

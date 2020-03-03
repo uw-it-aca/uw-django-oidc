@@ -75,7 +75,7 @@ class TestMiddleware(TestCase):
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.reason_phrase, 'Invalid token: Disabled')
+        self.assertEqual(response.reason_phrase, 'Invalid token: Blocked')
 
     def test_process_view_already_authenticated(self):
         request = self.create_authenticated_request(auth_token='abc')
