@@ -9,7 +9,7 @@ from uw_oidc.middleware import (
     IDTokenAuthenticationMiddleware, UWIdPToken, InvalidTokenError)
 
 
-@override_settings(TOKEN_AUDIENCE='myuw', TOKEN_LEEWAY=3, TOKEN_ISSUER='uwidp',
+@override_settings(UW_TOKEN_AUDIENCE='myid',
                    AUTHENTICATION_BACKENDS=[
                        'django.contrib.auth.backends.RemoteUserBackend'])
 class TestMiddleware(TestCase):
@@ -70,19 +70,18 @@ class TestMiddleware(TestCase):
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Missing username')
 
-    @patch.object(UWIdPToken, 'username_from_token', return_value='bill')
-    def test_process_view_username_mismatch(self, mock_fn):
+    def test_disbaled_session(self):
         request = self.create_authenticated_request(auth_token='abc')
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.reason_phrase,
-                         'Invalid token: Username mismatch')
+        self.assertEqual(response.reason_phrase, 'Invalid token: Disabled')
 
-    @patch.object(UWIdPToken, 'username_from_token', return_value='javerage')
-    def test_process_view_already_authenticated(self, mock_fn):
+    def test_process_view_already_authenticated(self):
         request = self.create_authenticated_request(auth_token='abc')
+        request.META['UW_DEVICE_ID'] = 'x001'
         middleware = IDTokenAuthenticationMiddleware()
+        request.session[middleware.DEVICE_ID_KEY] = 'x001'
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response, None)
 
@@ -90,7 +89,7 @@ class TestMiddleware(TestCase):
     def test_process_view_authenticate(self, mock_fn):
         request = self.create_unauthenticated_request(auth_token='abc')
         self.assertEqual(request.user.is_authenticated, False)
-
+        request.META['UW_DEVICE_ID'] = 'x001'
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
 
@@ -99,6 +98,8 @@ class TestMiddleware(TestCase):
         self.assertEqual(request.user.is_authenticated, True)
         self.assertEqual(
             request.session.get(middleware.TOKEN_SESSION_KEY), 'abc')
+        self.assertEqual(
+            request.session.get(middleware.DEVICE_ID_KEY), 'x001')
 
     def test_process_view_invalid_session(self):
         request = self.create_authenticated_request()

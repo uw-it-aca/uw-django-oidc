@@ -67,7 +67,7 @@ class UW_JWKS(object):
 
         for key in json_wks['keys']:
             try:
-                if key['kty'] == "RSA" and key.get('kid') == keyid:
+                if key.get('kid') == keyid:
                     return JWK(**key).export_to_pem()
             except JWException as ex:
                 logger.error("JwksDataError {} {}".format(ex, key))

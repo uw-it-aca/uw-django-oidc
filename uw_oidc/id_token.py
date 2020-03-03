@@ -1,4 +1,6 @@
 import logging
+from calendar import timegm
+from datetime import datetime, timedelta, timezone
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from jwt import decode, get_unverified_header
@@ -18,14 +20,11 @@ class UWIdPToken(object):
         'verify_iss': True, 'verify_aud': True
     }
     # To avoid algorithm confusion attacks, always specify only
-    # the algorithm expected to use for token signature validation.
-    # the list below may need to be narrowed down
-    SIGNING_ALGORITHMS = [
-        'RS256', 'RS384', 'RS512', 'HS256', 'HS384', 'HS512', 'ES256'
-    ]
+    # the algoriths expected to use for token signature validation.
+    SIGNING_ALGORITHMS = ['RS256', 'RS384', 'RS512', 'ES256']
 
     def __init__(self):
-        if getattr(settings, 'TOKEN_AUDIENCE') is None:
+        if getattr(settings, 'UW_TOKEN_AUDIENCE') is None:
             raise ImproperlyConfigured(
                 'You must have TOKEN_AUDIENCE in your project settings')
 
@@ -35,7 +34,10 @@ class UWIdPToken(object):
         """
         self.token = token
         self.key_id = self.extract_keyid()
-        return self.validate().get('sub')
+        self.payload = self.validate()
+        if self.valid_auth_time():
+            return self.payload.get('sub')
+        raise InvalidTokenError("AuthTimedOut")
 
     def extract_keyid(self):
         try:
@@ -45,7 +47,7 @@ class UWIdPToken(object):
 
         if headers.get('kid') is None or not len(headers['kid']):
             logger.error("InvalidTokenHeader: missing kid {}".format(headers))
-            raise InvalidTokenHeader("{}".format(headers))
+            raise InvalidTokenHeader()
 
         return headers['kid']
 
@@ -78,11 +80,26 @@ class UWIdPToken(object):
             self.key_id, force_update=force_update)
 
     def decode_token(self, pubkey):
-        return decode(self.token,
-                      options=self.JWT_OPTIONS,
-                      key=pubkey,
-                      algorithms=self.SIGNING_ALGORITHMS,
-                      issuer=getattr(settings, 'TOKEN_ISSUER',
-                                     "urn:mace:incommon:washington.edu:eval"),
-                      audience=getattr(settings, 'TOKEN_AUDIENCE'),
-                      leeway=int(getattr(settings, 'TOKEN_LEEWAY', 1)))
+        return decode(
+            self.token,
+            options=self.JWT_OPTIONS,
+            key=pubkey,
+            algorithms=self.SIGNING_ALGORITHMS,
+            issuer=getattr(settings, 'UW_TOKEN_ISSUER',
+                           "https://idp-eval.u.washington.edu"),
+            audience=getattr(settings, 'UW_TOKEN_AUDIENCE'),
+            leeway=int(getattr(settings, 'UW_TOKEN_LEEWAY', 1)))  # sec
+
+    def valid_auth_time(self):
+        """
+        Raise InvalidTokenError if the id-token is not fresh enough
+        """
+        timeout = int(getattr(settings, 'UW_TOKEN_MAX_AGE', 300))  # sec
+        age_limit = timegm(datetime.utcnow().utctimetuple()) - timeout
+        try:
+            return int(self.payload['auth_time']) >= age_limit
+        except KeyError as ex:
+            pass
+        logger.error("Token auth time out: {} issued before {}".format(
+            self.payload, age_limit))
+        return False
