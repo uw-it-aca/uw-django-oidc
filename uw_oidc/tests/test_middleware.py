@@ -30,6 +30,8 @@ class TestMiddleware(TestCase):
         request = self.create_unauthenticated_request(auth_token)
         user = authenticate(request, remote_user='javerage')
         login(request, user)
+        if auth_token is not None:
+            request.session['uw_oidc_idtoken'] = auth_token
         return request
 
     def test_process_view_missing_session(self):
@@ -72,6 +74,7 @@ class TestMiddleware(TestCase):
 
     def test_disbaled_session(self):
         request = self.create_authenticated_request(auth_token='abc')
+        request.META['UW_DEVICE_ID'] = 'x001'
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.status_code, 401)
@@ -92,26 +95,25 @@ class TestMiddleware(TestCase):
         request.META['UW_DEVICE_ID'] = 'x001'
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
-
-        # Check that user has been logged in, and token added to session
+        # Check that user has been logged in
         self.assertEqual(response, None)
         self.assertEqual(request.user.is_authenticated, True)
+        # token added to session
         self.assertEqual(
             request.session.get(middleware.TOKEN_SESSION_KEY), 'abc')
+        # uuid added to session
         self.assertEqual(
             request.session.get(middleware.DEVICE_ID_KEY), 'x001')
 
-    def test_process_view_invalid_session(self):
-        request = self.create_authenticated_request()
-
+    def test_token_authn_session_req_wo_token(self):
+        request = self.create_authenticated_request(auth_token='abc')
         middleware = IDTokenAuthenticationMiddleware()
-        request.session[middleware.TOKEN_SESSION_KEY] = 'abc'
-
+        del request.META['HTTP_AUTHORIZATION']
         response = middleware.process_view(request, None, None, None)
-
-        # Check that user has been logged out, and session token deleted
         self.assertEqual(response, None)
-        self.assertEqual(request.user.is_authenticated, False)
+        # Check that user has been logged out
+        self.assertFalse(request.user.is_authenticated)
+        # session token deleted
         with self.assertRaises(KeyError) as raises:
             request.session[middleware.TOKEN_SESSION_KEY]
 

@@ -34,13 +34,10 @@ class IDTokenAuthenticationMiddleware:
 
                 if request.user.is_authenticated:
                     device_id = request.session.get(self.DEVICE_ID_KEY)
-
                     if (req_device_id is None or
                             self.disabled(req_device_id) or
                             device_id is None or
                             self.disabled(device_id)):
-                        if self.TOKEN_SESSION_KEY in request.session:
-                            del request.session[self.TOKEN_SESSION_KEY]
                         auth.logout(request)
                         raise InvalidTokenError('Blocked')
 
@@ -67,11 +64,11 @@ class IDTokenAuthenticationMiddleware:
                                     reason='Invalid token: {}'.format(ex))
         else:
             if (request.user.is_authenticated and
-                    self.TOKEN_SESSION_KEY in request.session):
+                    (self.DEVICE_ID_KEY in request.session or
+                     self.TOKEN_SESSION_KEY in request.session)):
                 # The user is authenticated with a token in session, but the
                 # request does not contain a token, the session is invalid.
-                del request.session[self.TOKEN_SESSION_KEY]
-                auth.logout(request)
+                auth.logout(request)  # completely cleaned out session data
 
         return None
 
