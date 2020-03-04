@@ -54,19 +54,14 @@ class UWIdPToken(object):
         if pubkey is None:
             if refresh_keys is False:
                 return self.validate(refresh_keys=True)
-            logger.error("NoMatchingPublicKey for kid: {}".format(
+            logger.error("NoMatchingPublicKey (kid: {})".format(
                 self.key_id))
             raise NoMatchingPublicKey(self.key_id)
 
         try:
             return self.decode_token(pubkey)
-        except InvalidSignatureError as ex:
-            if refresh_keys is False:
-                return self.validate(refresh_keys=True)
-            logger.error("{} on token: {}".format(ex, self.token))
-            raise InvalidTokenError(ex)
         except PyJWTError as ex:
-            logger.error("{} on token {}".format(ex, self.token))
+            logger.error("InvalidTokenError {}".format(self.token))
             raise InvalidTokenError(ex)
 
     def get_key(self, force_update):

@@ -59,7 +59,7 @@ class TestIdToken(TestCase):
     def test_validate(self):
         self.decoder.key_id = self.decoder.extract_keyid()
 
-        # expired
+        # expired token
         try:
             result = self.decoder.validate()
         except InvalidTokenError as ex:
@@ -75,12 +75,12 @@ class TestIdToken(TestCase):
 
         # invalid signature
         with patch.object(UWIdPToken, 'get_key') as mock1:
-            mock1.return_value = self.decoder.get_key()
             with patch.object(UWIdPToken, 'decode_token') as mock11:
                 mock11.side_effect = InvalidSignatureError
                 self.decoder.token = self.id_token
                 self.assertRaises(InvalidTokenError, self.decoder.validate)
-                self.assertEqual(mock11.call_count, 2)
+                self.assertEqual(mock11.call_count, 1)
+                self.assertEqual(mock1.call_count, 1)
 
     def test_valid_auth_time(self):
         # missing 'auth_time'
