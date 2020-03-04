@@ -81,7 +81,7 @@ class TestIdToken(TestCase):
                 self.decoder.token = self.id_token
                 self.assertRaises(InvalidTokenError, self.decoder.validate)
                 self.assertEqual(mock11.call_count, 2)
-                
+
     def test_valid_auth_time(self):
         # missing 'auth_time'
         self.decoder.payload = {'sub': 'javerage',
