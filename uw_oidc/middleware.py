@@ -42,7 +42,8 @@ class IDTokenAuthenticationMiddleware:
                         raise InvalidTokenError('Blocked')
 
                     if device_id == req_device_id:
-                        logger.info("Uphold {}".format(req_device_id))
+                        logger.info("Reentry user: {} {}".format(
+                            request.user.get_username(), req_device_id))
                         return None
 
                 # We are seeing this user for the first time in this
@@ -58,7 +59,8 @@ class IDTokenAuthenticationMiddleware:
                     auth.login(request, user)
                     request.session[self.TOKEN_SESSION_KEY] = token
                     request.session[self.DEVICE_ID_KEY] = req_device_id
-                    logger.info("Authenticated {}".format(req_device_id))
+                    logger.info("Authenticated: {} {}".format(
+                        username, req_device_id))
             except InvalidTokenError as ex:
                 return HttpResponse(status=401,
                                     reason='Invalid token: {}'.format(ex))

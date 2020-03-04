@@ -30,6 +30,7 @@ class UWIdPToken(object):
         self.key_id = self.extract_keyid()
         self.payload = self.validate()
         if self.valid_auth_time():
+            logger.info("Validated {}".format(self.payload))
             return self.payload.get('sub')
         raise InvalidTokenError("AuthTimedOut")
 
@@ -54,14 +55,13 @@ class UWIdPToken(object):
         if pubkey is None:
             if refresh_keys is False:
                 return self.validate(refresh_keys=True)
-            logger.error("NoMatchingPublicKey (kid: {})".format(
-                self.key_id))
+            logger.error("NoMatchingPublicKey (kid: {})".format(self.key_id))
             raise NoMatchingPublicKey(self.key_id)
 
         try:
             return self.decode_token(pubkey)
         except PyJWTError as ex:
-            logger.error("InvalidTokenError {}".format(self.token))
+            logger.error("InvalidTokenError {} {}".format(ex, self.token))
             raise InvalidTokenError(ex)
 
     def get_key(self, force_update):
@@ -89,6 +89,6 @@ class UWIdPToken(object):
             return int(self.payload['auth_time']) >= age_limit
         except KeyError as ex:
             pass
-        logger.error("Token auth time out: {} issued before {}".format(
-            self.payload, age_limit))
+        logger.error("Auth timeout (< {}): {}".format(
+            age_limit, self.payload))
         return False
