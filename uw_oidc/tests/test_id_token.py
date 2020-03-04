@@ -60,27 +60,23 @@ class TestIdToken(TestCase):
         self.decoder.key_id = self.decoder.extract_keyid()
 
         # expired token
-        try:
-            result = self.decoder.validate()
-        except InvalidTokenError as ex:
-            self.assertEqual(str(ex), "Signature has expired")
+        with patch.object(UWIdPToken, 'get_key') as mock1:
+            with patch.object(UWIdPToken, 'decode_token') as mock11:
+                try:
+                    result = self.decoder.validate()
+                except InvalidTokenError as ex:
+                    self.assertEqual(str(ex), "Signature has expired")
+                self.assertEqual(mock11.call_count, 1)
+            self.assertEqual(mock1.call_count, 1)
 
         # token using invalid algorithm
         self.decoder.token = self.bad_token
         self.assertRaises(InvalidTokenError, self.decoder.validate)
 
+        # no matching public key
         with patch.object(UWIdPToken, 'get_key', return_value=None) as mock2:
             self.assertRaises(NoMatchingPublicKey, self.decoder.validate)
             self.assertEqual(mock2.call_count, 2)
-
-        # invalid signature
-        with patch.object(UWIdPToken, 'get_key') as mock1:
-            with patch.object(UWIdPToken, 'decode_token') as mock11:
-                mock11.side_effect = InvalidSignatureError
-                self.decoder.token = self.id_token
-                self.assertRaises(InvalidTokenError, self.decoder.validate)
-                self.assertEqual(mock11.call_count, 1)
-                self.assertEqual(mock1.call_count, 1)
 
     def test_valid_auth_time(self):
         # missing 'auth_time'
