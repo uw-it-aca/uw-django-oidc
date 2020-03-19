@@ -2,24 +2,7 @@ from django.conf import settings
 from jwt import decode
 from jwt.exceptions import PyJWTError, InvalidSignatureError
 from uw_oidc.exceptions import InvalidTokenError
-from restclients_core.dao import DAO
-from restclients_core.exceptions import DataFailureException
-from os.path import abspath, dirname
-import os
-import json
-
-
-class UWIDP_DAO(DAO):
-    def service_name(self):
-        return 'uw_idp'
-
-    def service_mock_paths(self):
-        return [abspath(os.path.join(dirname(__file__), 'resources'))]
-
-    def delete_cache_key(self, url):
-        cache = self.get_cache()
-        cache_key = cache._get_key(self.service_name(), url)
-        cache.client.delete(cache_key)
+from uw_oidc.jwks import UW_JWKS
 
 
 class UWIdPToken(object):
@@ -61,22 +44,13 @@ class UWIdPToken(object):
             raise InvalidTokenError(ex)
 
     def username_from_token(self):
+        self.key_id = self.extract_keyid()
         return self.decode_token().get('sub')
 
+    def extract_keyid(self):
+        # TODO
+        return "defaultEC"
+
     def get_key(self, force_update=False):
-        dao = UWIDP_DAO()
-
-        if force_update:
-            dao.delete_cache_key(self.KEY_URL)
-
-        response = dao.getURL(
-            self.KEY_URL, headers={'Accept': 'application/json'})
-
-        if response.status != 200:
-            raise DataFailureException(
-                self.KEY_URL, response.status, response.data)
-
-        data = json.loads(response.data)
-        for key in data.get('keys', []):
-            # TODO
-            pass
+        return UWIdPToken.JWKS_CLIENT.get_pubkey(
+            self.key_id, force_update=force_update)
