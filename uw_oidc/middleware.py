@@ -30,21 +30,14 @@ class IDTokenAuthenticationMiddleware:
 
         if 'HTTP_AUTHORIZATION' in request.META:
             try:
-                req_device_id = request.META.get('UW_DEVICE_ID')
-
                 if request.user.is_authenticated:
-                    device_id = request.session.get(self.DEVICE_ID_KEY)
-                    if (req_device_id is None or
-                            self.disabled(req_device_id) or
-                            device_id is None or
-                            self.disabled(device_id)):
+                    if self.disallowed(request):
                         auth.logout(request)
-                        raise InvalidTokenError('Blocked')
+                        logger.error("Access Denied: {}".format(
+                            request.user.get_username()))
+                        raise InvalidTokenError('Access Denied')
 
-                    if device_id == req_device_id:
-                        logger.info("Reentry user: {} {}".format(
-                            request.user.get_username(), req_device_id))
-                        return None
+                    return None
 
                 # We are seeing this user for the first time in this
                 # session, attempt to authenticate the user.
@@ -58,9 +51,10 @@ class IDTokenAuthenticationMiddleware:
                     # in the session by logging the user in.
                     auth.login(request, user)
                     request.session[self.TOKEN_SESSION_KEY] = token
-                    request.session[self.DEVICE_ID_KEY] = req_device_id
+                    request.session[self.DEVICE_ID_KEY] = (
+                        request.META.get('UW_DEVICE_ID'))
                     logger.info("Authenticated: {} {}".format(
-                        username, req_device_id))
+                        username, request.session[self.DEVICE_ID_KEY]))
             except InvalidTokenError as ex:
                 return HttpResponse(status=401,
                                     reason='Invalid token: {}'.format(ex))
@@ -85,6 +79,9 @@ class IDTokenAuthenticationMiddleware:
 
         return username
 
-    def disabled(self, device_id):
-        black_list = getattr(settings, 'UW_DISABLED_UUID', [])
-        return len(black_list) and device_id and device_id in black_list
+    def disallowed(self, request):
+        black_list = getattr(settings, 'UW_ACC_DENIED_LIST', [])
+        username = request.user.get_username()
+        device_id = request.session.get(self.DEVICE_ID_KEY)
+        return (len(black_list) and
+                (username in black_list or device_id in black_list))

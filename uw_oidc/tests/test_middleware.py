@@ -26,12 +26,14 @@ class TestMiddleware(TestCase):
         AuthenticationMiddleware().process_request(request)
         return request
 
-    def create_authenticated_request(self, auth_token=None):
+    def create_authenticated_request(self, auth_token='', uuid=''):
         request = self.create_unauthenticated_request(auth_token)
         user = authenticate(request, remote_user='javerage')
         login(request, user)
         if auth_token is not None:
             request.session['uw_oidc_idtoken'] = auth_token
+        if uuid is not None:
+            request.session['uw_uuid'] = uuid
         return request
 
     def test_process_view_missing_session(self):
@@ -65,26 +67,25 @@ class TestMiddleware(TestCase):
 
     @patch.object(UWIdPToken, 'username_from_token', return_value='')
     def test_process_view_invalid_username(self, mock_fn):
-        request = self.create_unauthenticated_request(auth_token='abc')
+        request = self.create_unauthenticated_request(auth_token='')
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.reason_phrase,
                          'Invalid token: Missing username')
 
+    @override_settings(UW_ACC_DENIED_LIST=['x001'])
     def test_disbaled_session(self):
-        request = self.create_authenticated_request(auth_token='abc')
-        request.META['UW_DEVICE_ID'] = 'x001'
+        request = self.create_authenticated_request(uuid='x001')
         middleware = IDTokenAuthenticationMiddleware()
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.reason_phrase, 'Invalid token: Blocked')
+        self.assertEqual(response.reason_phrase,
+                         'Invalid token: Access Denied')
 
     def test_process_view_already_authenticated(self):
-        request = self.create_authenticated_request(auth_token='abc')
-        request.META['UW_DEVICE_ID'] = 'x001'
+        request = self.create_authenticated_request()
         middleware = IDTokenAuthenticationMiddleware()
-        request.session[middleware.DEVICE_ID_KEY] = 'x001'
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response, None)
 
@@ -106,7 +107,7 @@ class TestMiddleware(TestCase):
             request.session.get(middleware.DEVICE_ID_KEY), 'x001')
 
     def test_token_authn_session_req_wo_token(self):
-        request = self.create_authenticated_request(auth_token='abc')
+        request = self.create_authenticated_request()
         middleware = IDTokenAuthenticationMiddleware()
         del request.META['HTTP_AUTHORIZATION']
         response = middleware.process_view(request, None, None, None)
@@ -116,6 +117,8 @@ class TestMiddleware(TestCase):
         # session token deleted
         with self.assertRaises(KeyError) as raises:
             request.session[middleware.TOKEN_SESSION_KEY]
+        with self.assertRaises(KeyError) as raises:
+            request.session[middleware.DEVICE_ID_KEY]
 
     def test_clean_username(self):
         request = self.create_unauthenticated_request()
