@@ -17,3 +17,11 @@ class JwksDataError(InvalidTokenError):
 
 class JwksDataInvalidJson(JwksDataError):
     pass
+
+
+class InvalidTokenHeader(InvalidTokenError):
+    pass
+
+
+class NoMatchingPublicKey(InvalidTokenError):
+    pass
