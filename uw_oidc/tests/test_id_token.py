@@ -49,21 +49,21 @@ class TestIdToken(TestCase):
             mock.side_effect = PyJWTError
             self.assertRaises(InvalidTokenHeader, self.decoder.extract_keyid)
 
-    def test_decode_id_token(self):
+    def test_decode_token(self):
         self.decoder.key_id = self.decoder.extract_keyid()
         # the closest to a valid token
         self.assertRaises(ExpiredSignatureError,
                           self.decoder.decode_token,
                           self.decoder.get_key(False))
 
-    def test_validation_of_token(self):
+    def test_get_token_payload(self):
         self.decoder.key_id = self.decoder.extract_keyid()
 
         # expired token
         with patch.object(UWIdPToken, 'get_key') as mock1:
             with patch.object(UWIdPToken, 'decode_token') as mock11:
                 try:
-                    result = self.decoder.validate()
+                    result = self.decoder.get_token_payload()
                 except InvalidTokenError as ex:
                     self.assertEqual(str(ex), "Signature has expired")
                 self.assertEqual(mock11.call_count, 1)
@@ -71,11 +71,12 @@ class TestIdToken(TestCase):
 
         # token using invalid algorithm
         self.decoder.token = self.bad_token
-        self.assertRaises(InvalidTokenError, self.decoder.validate)
+        self.assertRaises(InvalidTokenError, self.decoder.get_token_payload)
 
         # no matching public key
         with patch.object(UWIdPToken, 'get_key', return_value=None) as mock2:
-            self.assertRaises(NoMatchingPublicKey, self.decoder.validate)
+            self.assertRaises(NoMatchingPublicKey,
+                              self.decoder.get_token_payload)
             self.assertEqual(mock2.call_count, 2)
 
     @override_settings(UW_TOKEN_MAX_AGE=120)

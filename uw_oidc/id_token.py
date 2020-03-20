@@ -29,7 +29,7 @@ class UWIdPToken(object):
         """
         self.token = token
         self.key_id = self.extract_keyid()
-        self.payload = self.validate()
+        self.payload = self.get_token_payload()
         if self.valid_auth_time():
             logger.info("Validated {}".format(self.payload))  # remove later
             return self.payload.get('sub')
@@ -47,15 +47,14 @@ class UWIdPToken(object):
 
         return headers['kid']
 
-    def validate(self, refresh_keys=False):
+    def get_token_payload(self, refresh_keys=False):
         """
-        Return the decoded payload from the token
-        Raise InvalidTokenError if not a valid token.
+        Raise InvalidTokenError if not a valid jwt token.
         """
         pubkey = self.get_key(refresh_keys)
         if pubkey is None:
             if refresh_keys is False:
-                return self.validate(refresh_keys=True)
+                return self.get_token_payload(refresh_keys=True)
             logger.error("NoMatchingPublicKey (kid: {})".format(self.key_id))
             raise NoMatchingPublicKey(self.key_id)
 

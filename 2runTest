@@ -1,9 +1,0 @@
-source bin/activate
-
-#coverage run --source=uw_oidc/ manage.py test uw_oidc
-
-./manage.py test uw_oidc
-#./manage.py test uw_oidc.tests.test_middleware
-#./manage.py test uw_oidc.tests.test_id_token
-#./manage.py test uw_oidc.tests.test_jwks
-
