@@ -1,8 +1,11 @@
+import logging
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
 from uw_oidc.id_token import UWIdPToken
 from uw_oidc.exceptions import InvalidTokenError
+
+logger = logging.getLogger(__name__)
 
 
 class IDTokenAuthenticationMiddleware:
@@ -25,24 +28,24 @@ class IDTokenAuthenticationMiddleware:
 
         if 'HTTP_AUTHORIZATION' in request.META:
             try:
+                if request.user.is_authenticated:
+                    # honor the valid session
+                    return None
+
+                # We are seeing this user for the first time in this
+                # session, attempt to authenticate the user.
                 token = request.META['HTTP_AUTHORIZATION']
                 username = self.clean_username(
                     UWIdPToken().username_from_token(token))
 
-                if request.user.is_authenticated:
-                    if request.user.get_username() != username:
-                        # An authenticated user is associated with the request,
-                        # but it does not match the user in the token.
-                        raise InvalidTokenError('Username mismatch')
-                else:
-                    # We are seeing this user for the first time in this
-                    # session, attempt to authenticate the user.
-                    user = auth.authenticate(request, remote_user=username)
-                    if user:
-                        # User is valid.  Set request.user and persist user
-                        # in the session by logging the user in.
-                        auth.login(request, user)
-                        request.session[self.TOKEN_SESSION_KEY] = token
+                user = auth.authenticate(request, remote_user=username)
+                if user:
+                    # User is valid.  Set request.user and persist user
+                    # in the session by logging the user in.
+                    auth.login(request, user)
+                    request.session[self.TOKEN_SESSION_KEY] = token
+                    logger.info("Login token based session: {} {}".format(
+                        username, request.META.get('UW_DEVICE_ID')))
 
             except InvalidTokenError as ex:
                 return HttpResponse(status=401,
@@ -50,10 +53,11 @@ class IDTokenAuthenticationMiddleware:
         else:
             if (request.user.is_authenticated and
                     self.TOKEN_SESSION_KEY in request.session):
-                # The user is authenticated with a token in session, but the
-                # request does not contain a token, the session is invalid.
-                del request.session[self.TOKEN_SESSION_KEY]
+                # The session was established based on a valid token
+                # but the request has no token, revoke the existing session.
                 auth.logout(request)
+                logger.error("Revoke token based session: {}".format(
+                    request.user.get_username()))
 
         return None
 
