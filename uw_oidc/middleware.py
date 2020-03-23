@@ -1,3 +1,4 @@
+import json
 import logging
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured
@@ -44,9 +45,10 @@ class IDTokenAuthenticationMiddleware:
                     # in the session by logging the user in.
                     auth.login(request, user)
                     request.session[self.TOKEN_SESSION_KEY] = token
-                    logger.info("Login token based session: {} {}".format(
-                        username, request.META.get('UW_DEVICE_ID')))
-
+                    logger.info(json.dumps(
+                        {'msg': "Login token based session",
+                         'user': username,
+                         'uuid': request.META.get('UW_DEVICE_ID')}))
             except InvalidTokenError as ex:
                 return HttpResponse(status=401,
                                     reason='Invalid token: {}'.format(ex))
