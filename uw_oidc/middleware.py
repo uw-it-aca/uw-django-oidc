@@ -47,8 +47,7 @@ class IDTokenAuthenticationMiddleware:
                     request.session[self.TOKEN_SESSION_KEY] = token
                     logger.info(json.dumps(
                         {'msg': "Login token based session",
-                         'user': username,
-                         'uuid': request.META.get('UW_DEVICE_ID')}))
+                         'user': username}))
             except InvalidTokenError as ex:
                 return HttpResponse(status=401,
                                     reason='Invalid token: {}'.format(ex))
@@ -57,9 +56,9 @@ class IDTokenAuthenticationMiddleware:
                     self.TOKEN_SESSION_KEY in request.session):
                 # The session was established based on a valid token
                 # but the request has no token, revoke the existing session.
-                auth.logout(request)
                 logger.error("Revoke token based session: {}".format(
                     request.user.get_username()))
+                auth.logout(request)
 
         return None
 
