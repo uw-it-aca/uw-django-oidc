@@ -30,7 +30,7 @@ class IDTokenAuthenticationMiddleware:
         if 'HTTP_AUTHORIZATION' in request.META:
             try:
                 if request.user.is_authenticated:
-                    # honor the valid session
+                    # not validate ID token on every request
                     return None
 
                 # We are seeing this user for the first time in this
