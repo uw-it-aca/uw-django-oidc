@@ -35,10 +35,9 @@ class UWIDP_DAO(DAO):
         response = self.getURL(UWIDP_DAO.URL,
                                headers={'Accept': 'application/json'})
         if response.status != 200:
-            logger.error(
-                "JwksFetchError on {} Status code: {} Message: {}".format(
-                    UWIDP_DAO.URL, response.status, response.data))
-            raise JwksFetchError()
+            raise JwksFetchError(json.dumps({'url': UWIDP_DAO.URL,
+                                             'Status code': response.status,
+                                             'data': response.data}))
         return response.data
 
 
@@ -58,18 +57,16 @@ class UW_JWKS(object):
         try:
             json_wks = json.loads(resp_data)
         except Exception as ex:
-            logger.error("JwksDataInvalidJson {} {}".format(ex, resp_data))
-            raise JwksDataInvalidJson(ex)
+            raise JwksDataInvalidJson("{}: {}".format(resp_data, ex))
 
         if 'keys' not in json_wks:
-            logger.error("JwksDataError: missing keys {}".format(json_wks))
-            raise JwksDataError("No keys")
+            raise JwksDataError(
+                "{}: Missing 'keys' attribute".format(json_wks))
 
         for key in json_wks['keys']:
             try:
                 if key.get('kid') == keyid:
                     return JWK(**key).export_to_pem()
             except JWException as ex:
-                logger.error("JwksDataError {} {}".format(ex, key))
-                raise JwksDataError(ex)
+                raise JwksDataError("{}: {}".format(key, ex))
         return None

@@ -1,3 +1,4 @@
+import json
 import logging
 from calendar import timegm
 from datetime import datetime, timedelta, timezone
@@ -6,6 +7,7 @@ from jwt import decode, get_unverified_header
 from jwt.exceptions import PyJWTError, InvalidSignatureError
 from uw_oidc.exceptions import (
     InvalidTokenError, InvalidTokenHeader, NoMatchingPublicKey)
+from uw_oidc import enable_logging
 from uw_oidc.jwks import UW_JWKS
 
 logger = logging.getLogger(__name__)
@@ -31,7 +33,6 @@ class UWIdPToken(object):
         self.key_id = self.extract_keyid()
         self.payload = self.get_token_payload()
         if self.valid_auth_time():
-            logger.info("Validated {}".format(self.payload))  # remove later
             return self.payload.get('sub')
         raise InvalidTokenError("AuthTimedOut")
 
@@ -42,7 +43,10 @@ class UWIdPToken(object):
             raise InvalidTokenHeader(ex)
 
         if headers.get('kid') is None or not len(headers['kid']):
-            logger.error("InvalidTokenHeader: missing kid {}".format(headers))
+            if enable_logging:
+                logger.error(json.dumps(
+                    {'msg': "InvalidTokenHeader - missing kid",
+                     'headers': headers}))
             raise InvalidTokenHeader()
 
         return headers['kid']
@@ -55,14 +59,20 @@ class UWIdPToken(object):
         if pubkey is None:
             if refresh_keys is False:
                 return self.get_token_payload(refresh_keys=True)
-            logger.error("NoMatchingPublicKey (kid: {})".format(self.key_id))
+            if enable_logging:
+                logger.error(json.dumps(
+                    {'msg': "NoMatchingPublicKey for the kid",
+                     'kid': self.key_id}))
             raise NoMatchingPublicKey(self.key_id)
 
         # When reaching this point, we have got the valid public key.
         try:
             return self.decode_token(pubkey)
         except PyJWTError as ex:
-            logger.error("InvalidTokenError {} {}".format(ex, self.token))
+            if enable_logging:
+                logger.error(json.dumps(
+                    {'msg': "InvalidTokenError - {}".format(ex),
+                     'token': self.token}))
             raise InvalidTokenError(ex)
 
     def get_key(self, force_update):
@@ -93,6 +103,4 @@ class UWIdPToken(object):
             return int(self.payload['auth_time']) >= age_limit
         except KeyError as ex:
             pass
-        logger.error("Auth timeout (< {}): {}".format(
-            age_limit, self.payload))
         return False

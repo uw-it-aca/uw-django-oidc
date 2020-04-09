@@ -22,4 +22,7 @@ UW_TOKEN_AUDIENCE = ''
 # Specifies the allowed validity window to accommodate clock skew
 # between the given expiration time of the ID token
 UW_TOKEN_LEEWAY = seconds
+
+# To turn on logging of session authentication and errors
+UW_OIDC_ENABLE_LOGGING = True or 1
 ```
