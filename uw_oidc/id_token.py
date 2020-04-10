@@ -1,4 +1,3 @@
-import json
 import logging
 from calendar import timegm
 from datetime import datetime, timedelta, timezone
@@ -41,16 +40,14 @@ class UWIdPToken(object):
             headers = get_unverified_header(self.token)
         except PyJWTError as ex:
             if enable_logging:
-                logger.error(json.dumps(
-                    {'msg': "InvalidTokenHeader - {}".format(ex),
-                     'token': self.token}))
+                logger.error({'msg': "InvalidTokenHeader - {}".format(ex),
+                              'token': self.token})
             raise InvalidTokenHeader(ex)
 
         if headers.get('kid') is None or not len(headers['kid']):
             if enable_logging:
-                logger.error(json.dumps(
-                    {'msg': "InvalidTokenHeader - missing kid",
-                     'headers': headers}))
+                logger.error({'msg': "InvalidTokenHeader - missing kid",
+                              'headers': headers})
             raise InvalidTokenHeader()
 
         return headers['kid']
@@ -64,9 +61,8 @@ class UWIdPToken(object):
             if refresh_keys is False:
                 return self.get_token_payload(refresh_keys=True)
             if enable_logging:
-                logger.error(json.dumps(
-                    {'msg': "NoMatchingPublicKey for the kid",
-                     'kid': self.key_id}))
+                logger.error({'msg': "NoMatchingPublicKey for the kid",
+                              'kid': self.key_id})
             raise NoMatchingPublicKey()
 
         # When reaching this point, we have got the valid public key.
@@ -74,9 +70,8 @@ class UWIdPToken(object):
             return self.decode_token(pubkey)
         except PyJWTError as ex:
             if enable_logging:
-                logger.error(json.dumps(
-                    {'msg': "InvalidTokenError - {}".format(ex),
-                     'token': self.token}))
+                logger.error({'msg': "InvalidTokenError - {}".format(ex),
+                              'token': self.token})
             raise InvalidTokenError(ex)
 
     def get_key(self, force_update):

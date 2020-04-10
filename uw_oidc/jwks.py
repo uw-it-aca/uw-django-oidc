@@ -37,11 +37,10 @@ class UWIDP_DAO(DAO):
                                headers={'Accept': 'application/json'})
         if response.status != 200:
             if enable_logging:
-                logger.error(json.dumps(
-                    {'msg': "JwksFetchError",
-                     'url': UWIDP_DAO.URL,
-                     'Status code': response.status,
-                     'data': response.data}))
+                logger.error({'msg': "JwksFetchError",
+                              'url': UWIDP_DAO.URL,
+                              'Status code': response.status,
+                              'data': response.data})
             raise JwksFetchError()
         return response.data
 
@@ -63,16 +62,15 @@ class UW_JWKS(object):
             json_wks = json.loads(resp_data)
         except Exception as ex:
             if enable_logging:
-                logger.error(json.dumps(
-                    {'msg': "JwksDataInvalidJson - {}".format(ex),
-                     'data': resp_data}))
+                logger.error({'msg': "JwksDataInvalidJson - {}".format(ex),
+                              'data': resp_data})
             raise JwksDataInvalidJson(ex)
 
         if 'keys' not in json_wks:
             if enable_logging:
-                logger.error(json.dumps(
+                logger.error(
                     {'msg': "JwksDataError - Missing 'keys' attribute",
-                     'jwks': json_wks}))
+                     'jwks': json_wks})
             raise JwksDataError("Missing keys attribute")
 
         for key in json_wks['keys']:
@@ -81,8 +79,7 @@ class UW_JWKS(object):
                     return JWK(**key).export_to_pem()
             except JWException as ex:
                 if enable_logging:
-                    logger.error(json.dumps(
-                        {'msg': "JwksDataError - {}".format(ex),
-                         'key': key}))
+                    logger.error({'msg': "JwksDataError - {}".format(ex),
+                                  'key': key})
                 raise JwksDataError(ex)
         return None
