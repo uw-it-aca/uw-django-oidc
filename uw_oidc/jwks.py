@@ -5,6 +5,7 @@ from os.path import abspath, dirname
 from jwcrypto.jwk import JWK
 from jwcrypto.common import JWException
 from restclients_core.dao import DAO
+from uw_oidc import enable_logging
 from uw_oidc.exceptions import (
     JwksDataError, JwksFetchError, JwksDataInvalidJson)
 
@@ -27,17 +28,21 @@ class UWIDP_DAO(DAO):
 
     def get_jwks(self, force_update):
         """
-        return a dictionary of {kid_value: rsa_public_key}.
-        raise InvalidTokenError if access or data failure
+        return the response data from JWKS
+        raise JwksFetchError if access or data failure
         """
         if force_update:
             self.delete_cache_key()
         response = self.getURL(UWIDP_DAO.URL,
                                headers={'Accept': 'application/json'})
         if response.status != 200:
-            raise JwksFetchError(json.dumps({'url': UWIDP_DAO.URL,
-                                             'Status code': response.status,
-                                             'data': response.data}))
+            if enable_logging:
+                logger.error(json.dumps(
+                    {'msg': "JwksFetchError",
+                     'url': UWIDP_DAO.URL,
+                     'Status code': response.status,
+                     'data': response.data}))
+            raise JwksFetchError()
         return response.data
 
 
@@ -57,16 +62,27 @@ class UW_JWKS(object):
         try:
             json_wks = json.loads(resp_data)
         except Exception as ex:
-            raise JwksDataInvalidJson("{}: {}".format(resp_data, ex))
+            if enable_logging:
+                logger.error(json.dumps(
+                    {'msg': "JwksDataInvalidJson - {}".format(ex),
+                     'data': resp_data}))
+            raise JwksDataInvalidJson(ex)
 
         if 'keys' not in json_wks:
-            raise JwksDataError(
-                "{}: Missing 'keys' attribute".format(json_wks))
+            if enable_logging:
+                logger.error(json.dumps(
+                    {'msg': "JwksDataError - Missing 'keys' attribute",
+                     'jwks': json_wks}))
+            raise JwksDataError("Missing keys attribute")
 
         for key in json_wks['keys']:
             try:
                 if key.get('kid') == keyid:
                     return JWK(**key).export_to_pem()
             except JWException as ex:
-                raise JwksDataError("{}: {}".format(key, ex))
+                if enable_logging:
+                    logger.error(json.dumps(
+                        {'msg': "JwksDataError - {}".format(ex),
+                         'key': key}))
+                raise JwksDataError(ex)
         return None

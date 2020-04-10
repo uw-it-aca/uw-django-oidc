@@ -40,6 +40,10 @@ class UWIdPToken(object):
         try:
             headers = get_unverified_header(self.token)
         except PyJWTError as ex:
+            if enable_logging:
+                logger.error(json.dumps(
+                    {'msg': "InvalidTokenHeader - {}".format(ex),
+                     'token': self.token}))
             raise InvalidTokenHeader(ex)
 
         if headers.get('kid') is None or not len(headers['kid']):
@@ -63,7 +67,7 @@ class UWIdPToken(object):
                 logger.error(json.dumps(
                     {'msg': "NoMatchingPublicKey for the kid",
                      'kid': self.key_id}))
-            raise NoMatchingPublicKey(self.key_id)
+            raise NoMatchingPublicKey()
 
         # When reaching this point, we have got the valid public key.
         try:
