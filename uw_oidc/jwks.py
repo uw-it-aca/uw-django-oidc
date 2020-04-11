@@ -5,9 +5,9 @@ from os.path import abspath, dirname
 from jwcrypto.jwk import JWK
 from jwcrypto.common import JWException
 from restclients_core.dao import DAO
-from uw_oidc import enable_logging
 from uw_oidc.exceptions import (
     JwksDataError, JwksFetchError, JwksDataInvalidJson)
+from uw_oidc.logger import log_err
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +36,10 @@ class UWIDP_DAO(DAO):
         response = self.getURL(UWIDP_DAO.URL,
                                headers={'Accept': 'application/json'})
         if response.status != 200:
-            if enable_logging:
-                logger.error({'msg': "JwksFetchError",
-                              'url': UWIDP_DAO.URL,
-                              'Status code': response.status,
-                              'data': response.data})
+            log_err(logger, {'msg': "JwksFetchError",
+                             'url': UWIDP_DAO.URL,
+                             'Status code': response.status,
+                             'data': response.data})
             raise JwksFetchError()
         return response.data
 
@@ -61,16 +60,13 @@ class UW_JWKS(object):
         try:
             json_wks = json.loads(resp_data)
         except Exception as ex:
-            if enable_logging:
-                logger.error({'msg': "JwksDataInvalidJson - {}".format(ex),
-                              'data': resp_data})
+            log_err(logger, {'msg': "JwksDataInvalidJson - {}".format(ex),
+                             'data': resp_data})
             raise JwksDataInvalidJson(ex)
 
         if 'keys' not in json_wks:
-            if enable_logging:
-                logger.error(
-                    {'msg': "JwksDataError - Missing 'keys' attribute",
-                     'jwks': json_wks})
+            log_err(logger, {'msg': "JwksDataError - Missing 'keys' attribute",
+                             'jwks': json_wks})
             raise JwksDataError("Missing keys attribute")
 
         for key in json_wks['keys']:
@@ -78,8 +74,7 @@ class UW_JWKS(object):
                 if key.get('kid') == keyid:
                     return JWK(**key).export_to_pem()
             except JWException as ex:
-                if enable_logging:
-                    logger.error({'msg': "JwksDataError - {}".format(ex),
-                                  'key': key})
+                log_err(logger, {'msg': "JwksDataError - {}".format(ex),
+                                 'key': key})
                 raise JwksDataError(ex)
         return None

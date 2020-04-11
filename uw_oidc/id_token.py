@@ -6,8 +6,8 @@ from jwt import decode, get_unverified_header
 from jwt.exceptions import PyJWTError, InvalidSignatureError
 from uw_oidc.exceptions import (
     InvalidTokenError, InvalidTokenHeader, NoMatchingPublicKey)
-from uw_oidc import enable_logging
 from uw_oidc.jwks import UW_JWKS
+from uw_oidc.logger import log_err
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +39,13 @@ class UWIdPToken(object):
         try:
             headers = get_unverified_header(self.token)
         except PyJWTError as ex:
-            if enable_logging:
-                logger.error({'msg': "InvalidTokenHeader - {}".format(ex),
-                              'token': self.token})
+            log_err(logger, {'msg': "InvalidTokenHeader - {}".format(ex),
+                             'token': self.token})
             raise InvalidTokenHeader(ex)
 
         if headers.get('kid') is None or not len(headers['kid']):
-            if enable_logging:
-                logger.error({'msg': "InvalidTokenHeader - missing kid",
-                              'headers': headers})
+            log_err(logger, {'msg': "InvalidTokenHeader - missing kid",
+                             'headers': headers})
             raise InvalidTokenHeader()
 
         return headers['kid']
@@ -60,18 +58,16 @@ class UWIdPToken(object):
         if pubkey is None:
             if refresh_keys is False:
                 return self.get_token_payload(refresh_keys=True)
-            if enable_logging:
-                logger.error({'msg': "NoMatchingPublicKey for the kid",
-                              'kid': self.key_id})
+            log_err(logger, {'msg': "NoMatchingPublicKey for the kid",
+                             'kid': self.key_id})
             raise NoMatchingPublicKey()
 
         # When reaching this point, we have got the valid public key.
         try:
             return self.decode_token(pubkey)
         except PyJWTError as ex:
-            if enable_logging:
-                logger.error({'msg': "InvalidTokenError - {}".format(ex),
-                              'token': self.token})
+            log_err(logger, {'msg': "InvalidTokenError - {}".format(ex),
+                             'token': self.token})
             raise InvalidTokenError(ex)
 
     def get_key(self, force_update):

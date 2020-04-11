@@ -2,9 +2,9 @@ import logging
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
-from uw_oidc import enable_logging
-from uw_oidc.id_token import UWIdPToken
 from uw_oidc.exceptions import InvalidTokenError
+from uw_oidc.id_token import UWIdPToken
+from uw_oidc.logger import log_err, log_info
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +45,8 @@ class IDTokenAuthenticationMiddleware:
                     # in the session by logging the user in.
                     auth.login(request, user)
                     request.session[self.TOKEN_SESSION_KEY] = token
-                    if enable_logging:
-                        logger.info({'msg': "Login token based session",
-                                     'user': username})
+                    log_info(logger, {'msg': "Login token based session",
+                                      'user': username})
             except InvalidTokenError as ex:
                 return HttpResponse(status=401,
                                     reason='Invalid token: {}'.format(ex))
@@ -56,9 +55,8 @@ class IDTokenAuthenticationMiddleware:
                     self.TOKEN_SESSION_KEY in request.session):
                 # The session was established based on a valid token
                 # but the request has no token, revoke the existing session.
-                if enable_logging:
-                    logger.error({'msg': "Revoke token based session",
-                                  'user': request.user.get_username()})
+                log_err(logger, {'msg': "Revoke token based session",
+                                 'user': request.user.get_username()})
                 auth.logout(request)
 
         return None
