@@ -24,5 +24,5 @@ UW_TOKEN_AUDIENCE = ''
 UW_TOKEN_LEEWAY = seconds
 
 # To turn on logging of session authentication and errors
-UW_OIDC_ENABLE_LOGGING = True or 1
+UW_OIDC_ENABLE_LOGGING = True
 ```
