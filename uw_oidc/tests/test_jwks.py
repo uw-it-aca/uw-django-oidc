@@ -7,7 +7,7 @@ from uw_oidc.jwks import (
 
 class Test_UWIDP_DAO(TestCase):
     def test_get_jwks(self):
-        self.assertIsNotNone(UWIDP_DAO().get_jwks(False))
+        self.assertIsNotNone(UWIDP_DAO().get_jwks(True))
 
     @patch.object(UWIDP_DAO, 'getURL', spec=True)
     def test_force_update(self, mock):
@@ -23,7 +23,8 @@ class Test_UW_JWKS(TestCase):
         self.jwks = UW_JWKS()
 
     def test_get_pubkey(self):
-        self.assertIsNotNone(self.jwks.get_pubkey("defaultRSA"))
+        self.assertIsNotNone(self.jwks.get_pubkey("defaultRSA",
+                                                  force_update=True))
 
     @patch.object(UWIDP_DAO, 'get_jwks', spec=True)
     def test_no_matching_key(self, mock):

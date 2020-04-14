@@ -21,18 +21,14 @@ class UWIDP_DAO(DAO):
     def service_mock_paths(self):
         return [abspath(os.path.join(dirname(__file__), 'resources'))]
 
-    def delete_cache_key(self):
-        cache = self.get_cache()
-        cache_key = cache._get_key(self.service_name(), UWIDP_DAO.URL)
-        cache.client.delete(cache_key)
-
     def get_jwks(self, force_update):
         """
         return the response data from JWKS
         raise JwksFetchError if access or data failure
         """
         if force_update:
-            self.delete_cache_key()
+            self.clear_cached_response(UWIDP_DAO.URL)
+
         response = self.getURL(UWIDP_DAO.URL,
                                headers={'Accept': 'application/json'})
         if response.status != 200:
