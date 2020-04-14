@@ -11,16 +11,18 @@ A middleware class that authenticates a Django request containing a UW OIDC id-t
 ### Required settings
 
 ```
-MIDDLEWARE = ['IDTokenAuthenticationMiddleware',]
+MIDDLEWARE = ['uw_oidc.middleware.IDTokenAuthenticationMiddleware',]
 
 # Specifies the required issuer (IdP) of the OIDC token
-TOKEN_ISSUER = ''
+UW_TOKEN_ISSUER = ''
 
 # Specifies the required client (Id) that the OIDC token is issued to
-TOKEN_AUDIENCE = ''
+UW_TOKEN_AUDIENCE = ''
 
 # Specifies the allowed validity window to accommodate clock skew
-# between the given issue time and expiration time (in minutes)
-# that the ID token is within
-TOKEN_LEEWAY = ''
+# between the given expiration time of the ID token
+UW_TOKEN_LEEWAY = seconds
+
+# To turn on logging of session authentication and errors
+UW_OIDC_ENABLE_LOGGING = True
 ```

@@ -1,25 +1,111 @@
+from calendar import timegm
+from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from django.test import TestCase, override_settings
 from unittest.mock import patch
-from uw_oidc.id_token import decode_token, username_from_token
+from jwt.exceptions import ExpiredSignatureError
+from uw_oidc.id_token import (
+    UWIdPToken, InvalidTokenHeader, NoMatchingPublicKey, InvalidSignatureError,
+    PyJWTError, InvalidTokenError)
 
 
-@override_settings(TOKEN_ISSUER='uwidp', TOKEN_AUDIENCE='myuw', TOKEN_LEEWAY=3)
+@override_settings(UW_TOKEN_AUDIENCE='my',
+                   UW_TOKEN_LEEWAY=3,
+                   UW_TOKEN_ISSUER='https://idp-eval.u.washington.edu')
 class TestIdToken(TestCase):
+    bad_token = (
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ1d2lkcCIsImlhdCI'
+        '6MTU4MjE0NjA3MSwiZXhwIjozMzE3NzQ5MjcxLCJhdWQiOiJteXV3Iiwic3ViIjo'
+        'iamF2ZXJhZ2UiLCJHaXZlbl9uYW1lIjoiSiIsIkZhbWlseV9uYW1lIjoiQXZlcmF'
+        'nZSIsIkVtYWlsIjoiamF2ZXJhZ2VAdXcuZWR1IiwiU2NvcGVkX2FmZmlsaWF0aW9'
+        'uIjoiZW1wbG95ZWUgbWVtYmVyIn0.NRlQDOWMofVPZJ5mwN5Jk_KqbV4KRAMO7rp'
+        'M-rbs1tU')
+    id_token = (
+        'eyJraWQiOiJkZWZhdWx0UlNBIiwiYWxnIjoiUlMyNTYifQ.eyJhdF9oYXNoIjoie'
+        'mdIM2hWS0NnQU1LLS1EQWtYYi1nQSIsInN1YiI6InV3Y2RlbW8iLCJhdWQiOiJva'
+        'WRjXC9teXV3IiwiYWNyIjoicGFzc3dvcmQiLCJhdXRoX3RpbWUiOjE1ODMxNzM2O'
+        'DAsImlzcyI6Imh0dHBzOlwvXC9pZHAtZXZhbC51Lndhc2hpbmd0b24uZWR1IiwiZ'
+        'XhwIjoxNTgzMTc3MjgxLCJpYXQiOjE1ODMxNzM2ODEsIm5vbmNlIjoiS2xuRnhwN'
+        '2JPd18wMmtubUdTblVLeC1vVE81ZnhwMEtTa2FjMk13Z05ocyJ9.T8YSGyP7Ltlz'
+        'bfRcWj4xs8Izeps7zyhDX12jxYGDemY3KO0v5iSs0uAHhLddq5uS1SG53iEkMdpc'
+        'XeOI6kecdye6tdGdKDpUEbbxmpPP5VXp2eUk77YonDfWylICvWs6DKyDqE03yfop'
+        'KBLrBFN2hGk9P5ZrtvB0ZdYSd6DFgeTucNX03-g6q-q70o8o9ZDr1rz98BLdBtyA'
+        'Otwl9IJh53IioFD4U6zvS5HWjOr-7RivbwO0_BhIXS7Uo8WACYMF6Z6VzAqfrHKi'
+        'xXwpvVDNyZYV2R_KqwwPVgoeT5PMM_y-xidMMDtNlGCRDDUo0xrliuaOYrnAOzVT'
+        'SDgB5cFi4Q')
 
-    @patch('uw_oidc.id_token.decode', spec=True)
-    def test_decode_token(self, mock_decode):
-        result = decode_token('abc')
-        mock_decode.assert_called_once_with('abc', options={
-                'require_exp': True, 'require_iat': True, 'require_nbf': True,
-                'verify_signature': True, 'verify_iat': True,
-                'verify_nbf': True, 'verify_exp': True, 'verify_iss': True,
-                'verify_aud': True},
-                audience='myuw', issuer='uwidp', leeway=3)
+    def setUp(self):
+        self.decoder = UWIdPToken()
+        self.decoder.token = self.id_token
 
-    def test_username_from_token(self):
-        with patch('uw_oidc.id_token.decode_token', spec=True,
-                   return_value={"sub": "xyz", "iat": 1515}):
-            self.assertEquals(username_from_token("abc..."), "xyz")
-        with patch('uw_oidc.id_token.decode_token', spec=True,
-                   return_value={"name": "Xyz", "iat": 1515}):
-            self.assertIsNone(username_from_token("abc..."))
+    def test_extract_keyid(self):
+        self.assertEqual(self.decoder.extract_keyid(), 'defaultRSA')
+
+        # error parsing header
+        with patch('uw_oidc.id_token.get_unverified_header') as mock:
+            mock.return_value = {}
+            self.assertRaises(InvalidTokenHeader, self.decoder.extract_keyid)
+
+            mock.side_effect = PyJWTError
+            self.assertRaises(InvalidTokenHeader, self.decoder.extract_keyid)
+
+    def test_decode_token(self):
+        self.decoder.key_id = self.decoder.extract_keyid()
+        # the closest to a valid token
+        self.assertRaises(ExpiredSignatureError,
+                          self.decoder.decode_token,
+                          self.decoder.get_key(False))
+
+    def test_get_token_payload(self):
+        self.decoder.key_id = self.decoder.extract_keyid()
+
+        # expired token
+        try:
+            result = self.decoder.get_token_payload()
+        except Exception as ex:
+            self.assertEqual(str(ex), "Signature has expired")
+
+        # token using invalid algorithm
+        self.decoder.token = self.bad_token
+        self.assertRaises(InvalidTokenError, self.decoder.get_token_payload)
+
+        # no matching public key
+        with patch.object(UWIdPToken, 'get_key', return_value=None) as mock2:
+            self.assertRaises(NoMatchingPublicKey,
+                              self.decoder.get_token_payload)
+            self.assertEqual(mock2.call_count, 2)
+
+    @override_settings(UW_TOKEN_MAX_AGE=120)
+    def test_check_of_auth_time(self):
+        # missing 'auth_time'
+        self.decoder.payload = {'sub': 'javerage',
+                                "iat": 1583173681}
+        self.assertFalse(self.decoder.valid_auth_time())
+
+        self.decoder.payload['auth_time'] = \
+            timegm(datetime.utcnow().utctimetuple())
+        self.assertTrue(self.decoder.valid_auth_time())
+
+        # timed out
+        self.decoder.payload['auth_time'] -= 121
+        self.assertFalse(self.decoder.valid_auth_time())
+
+    @patch.object(UWIdPToken, 'decode_token')
+    def test_username_from_token(self, mock_decode_token):
+        # no auth_time checking
+        mock_decode_token.return_value = {'sub': 'javerage'}
+        self.assertEqual(self.decoder.username_from_token(self.id_token),
+                         'javerage')
+
+        # check auth_time
+        with self.settings(UW_TOKEN_MAX_AGE=1):
+            # good auth_time
+            mock_decode_token.return_value['auth_time'] = (
+                timegm(datetime.utcnow().utctimetuple()))
+            self.assertEqual(self.decoder.username_from_token(self.id_token),
+                             'javerage')
+
+            # auth_time older than required
+            mock_decode_token.return_value['auth_time'] -= 2
+            self.assertRaises(InvalidTokenError,
+                              self.decoder.username_from_token, self.id_token)
