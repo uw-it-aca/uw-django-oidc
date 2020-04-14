@@ -60,14 +60,10 @@ class TestIdToken(TestCase):
         self.decoder.key_id = self.decoder.extract_keyid()
 
         # expired token
-        with patch.object(UWIdPToken, 'get_key') as mock1:
-            with patch.object(UWIdPToken, 'decode_token') as mock11:
-                try:
-                    result = self.decoder.get_token_payload()
-                except InvalidTokenError as ex:
-                    self.assertEqual(str(ex), "Signature has expired")
-                self.assertEqual(mock11.call_count, 1)
-            self.assertEqual(mock1.call_count, 1)
+        try:
+            result = self.decoder.get_token_payload()
+        except Exception as ex:
+            self.assertEqual(str(ex), "Signature has expired")
 
         # token using invalid algorithm
         self.decoder.token = self.bad_token

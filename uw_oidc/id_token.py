@@ -66,7 +66,7 @@ class UWIdPToken(object):
         try:
             return self.decode_token(pubkey)
         except PyJWTError as ex:
-            log_err(logger, {'msg': "InvalidTokenError - {}".format(ex),
+            log_err(logger, {'msg': "InvalidToken - {}".format(ex),
                              'token': self.token})
             raise InvalidTokenError(ex)
 
