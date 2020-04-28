@@ -38,7 +38,8 @@ class TestMiddleware(TestCase):
         request = self.factory.get('/')
         middleware = IDTokenAuthenticationMiddleware()
         self.assertRaises(
-            ImproperlyConfigured, middleware.process_request, request)
+            ImproperlyConfigured, middleware.process_view, request,
+            None, None, None)
 
     @patch.object(UWIdPToken, 'username_from_token')
     def test_process_view_invalid_token(self, mock_username_from_token):
@@ -96,7 +97,6 @@ class TestMiddleware(TestCase):
         request = self.create_authenticated_request()
         middleware = IDTokenAuthenticationMiddleware()
         del request.META['HTTP_AUTHORIZATION']
-        middleware.process_request(request)
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response, None)
         self.assertTrue(request.user.is_authenticated)

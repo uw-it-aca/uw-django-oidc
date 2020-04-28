@@ -20,7 +20,7 @@ class IDTokenAuthenticationMiddleware(MiddlewareMixin):
     def __init__(self, get_response=None):
         self.get_response = get_response
 
-    def process_request(self, request):
+    def process_view(self, request, view_func, view_args, view_kwargs):
         if not hasattr(request, 'session'):
             raise ImproperlyConfigured(
                 'This authentication middleware requires session middleware '
@@ -28,7 +28,6 @@ class IDTokenAuthenticationMiddleware(MiddlewareMixin):
                 '"django.contrib.sessions.middleware.SessionMiddleware" '
                 'before "uw_oidc.middleware.IDTokenAuthenticationMiddleware".')
 
-    def process_view(self, request, view_func, view_args, view_kwargs):
         if 'HTTP_AUTHORIZATION' in request.META:
             try:
                 if request.user.is_authenticated:
