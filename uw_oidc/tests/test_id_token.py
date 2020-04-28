@@ -63,7 +63,8 @@ class TestIdToken(TestCase):
         try:
             result = self.decoder.get_token_payload()
         except Exception as ex:
-            self.assertEqual(str(ex), "Signature has expired")
+            self.assertEqual(str(ex),
+                             "InvalidTokenError: Signature has expired")
 
         # token using invalid algorithm
         self.decoder.token = self.bad_token
@@ -75,37 +76,11 @@ class TestIdToken(TestCase):
                               self.decoder.get_token_payload)
             self.assertEqual(mock2.call_count, 2)
 
-    @override_settings(UW_TOKEN_MAX_AGE=120)
-    def test_check_of_auth_time(self):
-        # missing 'auth_time'
-        self.decoder.payload = {'sub': 'javerage',
-                                "iat": 1583173681}
-        self.assertFalse(self.decoder.valid_auth_time())
-
-        self.decoder.payload['auth_time'] = \
-            timegm(datetime.utcnow().utctimetuple())
-        self.assertTrue(self.decoder.valid_auth_time())
-
-        # timed out
-        self.decoder.payload['auth_time'] -= 121
-        self.assertFalse(self.decoder.valid_auth_time())
-
     @patch.object(UWIdPToken, 'decode_token')
     def test_username_from_token(self, mock_decode_token):
-        # no auth_time checking
         mock_decode_token.return_value = {'sub': 'javerage'}
         self.assertEqual(self.decoder.username_from_token(self.id_token),
                          'javerage')
 
-        # check auth_time
-        with self.settings(UW_TOKEN_MAX_AGE=1):
-            # good auth_time
-            mock_decode_token.return_value['auth_time'] = (
-                timegm(datetime.utcnow().utctimetuple()))
-            self.assertEqual(self.decoder.username_from_token(self.id_token),
-                             'javerage')
-
-            # auth_time older than required
-            mock_decode_token.return_value['auth_time'] -= 2
-            self.assertRaises(InvalidTokenError,
-                              self.decoder.username_from_token, self.id_token)
+        mock_decode_token.return_value = {}
+        self.assertIsNone(self.decoder.username_from_token(self.id_token))

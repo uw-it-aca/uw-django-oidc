@@ -31,9 +31,7 @@ class UWIdPToken(object):
         self.token = token
         self.key_id = self.extract_keyid()
         self.payload = self.get_token_payload()
-        if self.valid_auth_time():
-            return self.payload.get('sub')
-        raise InvalidTokenError("AuthTimedOut")
+        return self.payload.get('sub')
 
     def extract_keyid(self):
         try:
@@ -84,18 +82,3 @@ class UWIdPToken(object):
                            "https://idp-eval.u.washington.edu"),
             audience=getattr(settings, 'UW_TOKEN_AUDIENCE'),
             leeway=int(getattr(settings, 'UW_TOKEN_LEEWAY', 1)))
-
-    def valid_auth_time(self):
-        """
-        Raise InvalidTokenError if the id-token is not fresh enough
-        """
-        timeout = int(getattr(settings, 'UW_TOKEN_MAX_AGE', 0))
-        if timeout == 0:
-            # will not check the auth_time
-            return True
-        age_limit = timegm(datetime.utcnow().utctimetuple()) - timeout
-        try:
-            return int(self.payload['auth_time']) >= age_limit
-        except KeyError as ex:
-            pass
-        return False

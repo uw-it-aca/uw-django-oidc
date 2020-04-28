@@ -50,7 +50,7 @@ class TestMiddleware(TestCase):
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.reason_phrase,
-                         'Invalid token: Not enough segments')
+                         'InvalidTokenError: Not enough segments')
 
     @patch.object(UWIdPToken, 'username_from_token')
     def test_process_view_expired_token(self, mock_username_from_token):
@@ -61,7 +61,7 @@ class TestMiddleware(TestCase):
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.reason_phrase,
-                         'Invalid token: ExpiredSignatureError')
+                         'InvalidTokenError: ExpiredSignatureError')
 
     @patch.object(UWIdPToken, 'username_from_token', return_value='')
     def test_process_view_invalid_username(self, mock_fn):
@@ -70,7 +70,7 @@ class TestMiddleware(TestCase):
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.reason_phrase,
-                         'Invalid token: Missing username')
+                         'InvalidTokenError: Missing username')
 
     def test_process_view_already_authenticated(self):
         request = self.create_authenticated_request()
@@ -93,18 +93,14 @@ class TestMiddleware(TestCase):
         self.assertEqual(
             request.session.get(middleware.TOKEN_SESSION_KEY), 'abc')
 
-    def test_token_authn_session_req_wo_token(self):
+    def test_authed_session_req_wo_token(self):
         request = self.create_authenticated_request()
         middleware = IDTokenAuthenticationMiddleware()
         del request.META['HTTP_AUTHORIZATION']
         response = middleware.process_view(request, None, None, None)
         self.assertEqual(response, None)
-
-        # Check that user has been logged out
-        self.assertFalse(request.user.is_authenticated)
-        # session token deleted
-        with self.assertRaises(KeyError) as raises:
-            request.session[middleware.TOKEN_SESSION_KEY]
+        self.assertTrue(request.user.is_authenticated)
+        self.assertIsNotNone(request.session[middleware.TOKEN_SESSION_KEY])
 
     def test_clean_username(self):
         request = self.create_unauthenticated_request()
