@@ -1,5 +1,9 @@
 """
-Custom exceptions for uw_oidc
+Custom exceptions for uw_oidc.
+All of them are returned with the HTTP response code 401.
+
+If it is a Jwks related exception, check Jwks the site.
+Otherwise the error is caused by the ID token.
 """
 
 
