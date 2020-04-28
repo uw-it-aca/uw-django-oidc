@@ -52,8 +52,7 @@ class IDTokenAuthenticationMiddleware(MiddlewareMixin):
                                       'user': username,
                                       'url': request.META.get('REQUEST_URI')})
             except InvalidTokenError as ex:
-                return HttpResponse(status=401,
-                                    reason='Invalid token: {}'.format(ex))
+                return HttpResponse(status=401, reason=str(ex))
         return None
 
     def clean_username(self, username):
