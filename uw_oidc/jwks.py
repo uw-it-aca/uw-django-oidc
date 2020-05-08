@@ -5,8 +5,8 @@ from os.path import abspath, dirname
 from jwcrypto.jwk import JWK
 from jwcrypto.common import JWException
 from restclients_core.dao import DAO
-from uw_oidc.exceptions import (
-    JwksDataError, JwksFetchError, JwksDataInvalidJson)
+from restclients_core.exceptions import DataFailureException
+from uw_oidc.exceptions import JwksDataError, JwksFetchError
 from uw_oidc.logger import log_err
 
 logger = logging.getLogger(__name__)
@@ -24,13 +24,19 @@ class UWIDP_DAO(DAO):
     def get_jwks(self, force_update):
         """
         return the response data from JWKS
-        raise JwksFetchError if access or data failure
+        raise JwksFetchError if the response code is not 200
+              or read timeout, max retry error...
         """
         if force_update:
             self.clear_cached_response(UWIDP_DAO.URL)
+        try:
+            response = self.getURL(UWIDP_DAO.URL,
+                                   headers={'Accept': 'application/json'})
+        except DataFailureException as ex:
+            log_err(logger, {'msg': "JwksFetchError - {}".format(ex),
+                             'url': UWIDP_DAO.URL})
+            raise JwksFetchError()
 
-        response = self.getURL(UWIDP_DAO.URL,
-                               headers={'Accept': 'application/json'})
         if response.status != 200:
             log_err(logger, {'msg': "JwksFetchError",
                              'url': UWIDP_DAO.URL,
@@ -55,10 +61,10 @@ class UW_JWKS(object):
 
         try:
             json_wks = json.loads(resp_data)
-        except Exception as ex:
-            log_err(logger, {'msg': "JwksDataInvalidJson - {}".format(ex),
+        except json.JSONDecodeError as ex:
+            log_err(logger, {'msg': "JwksDataError - {}".format(ex),
                              'data': resp_data})
-            raise JwksDataInvalidJson(ex)
+            raise JwksDataError(ex)
 
         if 'keys' not in json_wks:
             log_err(logger, {'msg': "JwksDataError - Missing 'keys' attribute",

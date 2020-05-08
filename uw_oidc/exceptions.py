@@ -23,10 +23,6 @@ class JwksDataError(InvalidTokenError):
     pass
 
 
-class JwksDataInvalidJson(JwksDataError):
-    pass
-
-
 class InvalidTokenHeader(InvalidTokenError):
     pass
 
