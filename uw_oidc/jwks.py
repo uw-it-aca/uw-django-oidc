@@ -5,6 +5,7 @@ from os.path import abspath, dirname
 from jwcrypto.jwk import JWK
 from jwcrypto.common import JWException
 from restclients_core.dao import DAO
+from restclients_core.exceptions import DataFailureException
 from uw_oidc.exceptions import JwksDataError, JwksFetchError
 from uw_oidc.logger import log_err
 
@@ -31,8 +32,7 @@ class UWIDP_DAO(DAO):
         try:
             response = self.getURL(UWIDP_DAO.URL,
                                    headers={'Accept': 'application/json'})
-        except Exception as ex:
-            # ReadTimeoutError, MaxRetryError, etc.
+        except DataFailureException as ex:
             log_err(logger, {'msg': "JwksFetchError - {}".format(ex),
                              'url': UWIDP_DAO.URL})
             raise JwksFetchError()
