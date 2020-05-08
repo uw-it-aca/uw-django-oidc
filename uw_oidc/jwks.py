@@ -61,7 +61,7 @@ class UW_JWKS(object):
 
         try:
             json_wks = json.loads(resp_data)
-        except Exception as ex:
+        except json.JSONDecodeError as ex:
             log_err(logger, {'msg': "JwksDataError - {}".format(ex),
                              'data': resp_data})
             raise JwksDataError(ex)
