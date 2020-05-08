@@ -1,5 +1,6 @@
 from django.test import TestCase
 from unittest.mock import patch
+from restclients_core.exceptions import DataFailureException
 from restclients_core.models import MockHTTP
 from uw_oidc.jwks import (
     UWIDP_DAO, UW_JWKS, JwksFetchError, JwksDataError)
@@ -17,7 +18,7 @@ class Test_UWIDP_DAO(TestCase):
         mock.return_value = response
         self.assertRaises(JwksFetchError, UWIDP_DAO().get_jwks, False)
 
-        mock.side_effect = Exception()
+        mock.side_effect = DataFailureException('', 0, '')
         self.assertRaises(JwksFetchError, UWIDP_DAO().get_jwks, False)
 
 
