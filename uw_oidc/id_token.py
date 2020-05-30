@@ -81,4 +81,4 @@ class UWIdPToken(object):
             issuer=getattr(settings, 'UW_TOKEN_ISSUER',
                            "https://idp-eval.u.washington.edu"),
             audience=getattr(settings, 'UW_TOKEN_AUDIENCE'),
-            leeway=int(getattr(settings, 'UW_TOKEN_LEEWAY', 1)))
+            leeway=int(getattr(settings, 'UW_TOKEN_LEEWAY', 60)))

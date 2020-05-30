@@ -1,4 +1,5 @@
 import logging
+from django.conf import settings
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
@@ -16,6 +17,7 @@ class IDTokenAuthenticationMiddleware(MiddlewareMixin):
     based request authentication for specified clients.
     """
     TOKEN_SESSION_KEY = 'uw_oidc_idtoken'
+    USER_KEY = '_uw_original_user'
 
     def __init__(self, get_response=None):
         self.get_response = get_response
@@ -43,11 +45,17 @@ class IDTokenAuthenticationMiddleware(MiddlewareMixin):
 
                 user = auth.authenticate(request, remote_user=username)
                 if user:
-                    # User is valid.  Set request.user and persist user
-                    # in the session by logging the user in.
+                    # Set logged-in user in request.user
                     auth.login(request, user)
+
+                    # Set persistent session length in seconds
+                    request.session.set_expiry(
+                        getattr(settings, 'UW_TOKEN_SESSION_AGE', 28800))
+
                     request.session[self.TOKEN_SESSION_KEY] = token
-                    log_info(logger, {'msg': "Login token based session",
+                    request.session[self.USER_KEY] = username
+
+                    log_info(logger, {'msg': "Login token-based session",
                                       'user': username,
                                       'url': request.META.get('REQUEST_URI')})
             except InvalidTokenError as ex:
