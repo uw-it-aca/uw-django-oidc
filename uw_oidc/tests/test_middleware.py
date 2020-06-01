@@ -10,6 +10,7 @@ from uw_oidc.middleware import (
 
 
 @override_settings(UW_TOKEN_AUDIENCE='myid',
+                   UW_TOKEN_SESSION_AGE=60,
                    AUTHENTICATION_BACKENDS=[
                        'django.contrib.auth.backends.RemoteUserBackend'])
 class TestMiddleware(TestCase):
@@ -92,6 +93,10 @@ class TestMiddleware(TestCase):
         # token added to session
         self.assertEqual(
             request.session.get(middleware.TOKEN_SESSION_KEY), 'abc')
+        self.assertEqual(
+            request.session.get(middleware.USER_KEY), 'javerage')
+        self.assertEqual(
+            request.session.get_expiry_age(), 60)
 
     def test_authed_session_req_wo_token(self):
         request = self.create_authenticated_request()

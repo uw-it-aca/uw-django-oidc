@@ -16,7 +16,7 @@ class UWIDP_DAO(DAO):
     URL = '/idp/profile/oidc/keyset'
 
     def service_name(self):
-        return 'uw_idp'
+        return 'uwidp'
 
     def service_mock_paths(self):
         return [abspath(os.path.join(dirname(__file__), 'resources'))]
