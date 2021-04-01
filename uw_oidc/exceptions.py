@@ -1,3 +1,6 @@
+# Copyright 2021 UW-IT, University of Washington
+# SPDX-License-Identifier: Apache-2.0
+
 """
 Custom exceptions for uw_oidc.
 All of them are returned with the HTTP response code 401.
