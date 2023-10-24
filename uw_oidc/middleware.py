@@ -64,10 +64,11 @@ class IDTokenAuthenticationMiddleware(MiddlewareMixin):
                     request.session[self.TOKEN_SESSION_KEY] = token
                     request.session[self.USER_KEY] = username
 
-                    log_info(logger, {'msg': "Login token-based session",
-                                      'user': username,
-                                      'expiry_age': request.session.get_expiry_age(),
-                                      'url': request.META.get('REQUEST_URI')})
+                    log_info(logger,
+                             {'msg': "Login token-based session",
+                              'user': username,
+                              'expiry_age': request.session.get_expiry_age(),
+                              'url': request.META.get('REQUEST_URI')})
             except InvalidTokenError as ex:
                 return HttpResponse(status=401, reason=str(ex))
         return None
