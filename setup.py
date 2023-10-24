@@ -21,7 +21,7 @@ setup(
     author_email="aca-it@uw.edu",
     include_package_data=True,
     install_requires=[
-        'Django>=2.2,<3.3',
+        'Django~=4.2',
         'UW-RestClients-Core',
         'pyjwt',
         'jwcrypto'
@@ -35,6 +35,6 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.8',
     ],
 )
