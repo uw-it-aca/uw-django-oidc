@@ -37,6 +37,12 @@ class IDTokenAuthenticationMiddleware(MiddlewareMixin):
             try:
                 if request.user.is_authenticated:
                     # honor the existing session
+                    if request.user and request.session:
+                        log_info(
+                            logger,
+                            {'msg': "Active session exists",
+                             'user': request.user.username,
+                             'expiry_age': request.session.get_expiry_age()})
                     return None
 
                 # We are seeing this user for the first time in this
@@ -60,6 +66,7 @@ class IDTokenAuthenticationMiddleware(MiddlewareMixin):
 
                     log_info(logger, {'msg': "Login token-based session",
                                       'user': username,
+                                      'expiry_age': request.session.get_expiry_age(),
                                       'url': request.META.get('REQUEST_URI')})
             except InvalidTokenError as ex:
                 return HttpResponse(status=401, reason=str(ex))
