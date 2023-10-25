@@ -1,6 +1,7 @@
 # Copyright 2023 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
+import mock
 from django.test import TestCase, override_settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.middleware import AuthenticationMiddleware
@@ -26,8 +27,9 @@ class TestMiddleware(TestCase):
             request = self.factory.get('/', HTTP_AUTHORIZATION=auth_token)
         else:
             request = self.factory.get('/')
-        SessionMiddleware().process_request(request)
-        AuthenticationMiddleware().process_request(request)
+        get_response = mock.MagicMock()
+        SessionMiddleware(get_response).process_request(request)
+        AuthenticationMiddleware(get_response).process_request(request)
         return request
 
     def create_authenticated_request(self, auth_token=''):
