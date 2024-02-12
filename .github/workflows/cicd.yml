@@ -28,7 +28,8 @@ name: tests
 env:
   APP_NAME: uw_oidc
   CONF_PATH: conf
-  COVERAGE_DJANGO_VERSION: 3.2
+  COVERAGE_DJANGO_VERSION: '4.2'
+  COVERAGE_PYTHON_VERSION: '3.10'
 
 on:
   push:
@@ -42,7 +43,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
@@ -57,7 +58,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: '3.10'
 
       - name: Install Dependencies
         run: |
@@ -87,7 +88,7 @@ jobs:
       - name: Run Tests
         run: |
           python -m compileall ${APP_NAME}/
-          coverage run --source=${APP_NAME}/ manage.py test ${APP_NAME}
+          python -Wd -m coverage run --source=${APP_NAME}/ manage.py test ${APP_NAME}
 
       - name: Report Test Coverage
         if: matrix.django-version == env.COVERAGE_DJANGO_VERSION
@@ -101,7 +102,7 @@ jobs:
 
     needs: test
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Repo
@@ -110,7 +111,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: '3.10'
 
       - name: Publish to PyPi
         uses: uw-it-aca/actions/publish-pypi@main
