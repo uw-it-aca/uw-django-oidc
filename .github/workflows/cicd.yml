@@ -47,18 +47,19 @@ jobs:
 
     strategy:
       matrix:
+        python-version:
+          - '3.10'
         django-version:
-          - '3.2'
           - '4.2'
 
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      - name: Setup Python
+      - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install Dependencies
         run: |
@@ -67,7 +68,7 @@ jobs:
           pip install -e .
           pip install coverage coveralls==3.3.1
 
-      - name: Upgrade Django Version
+      - name: Upgrade Django ${{ matrix.django-version }}
         run: pip install "Django~=${{ matrix.django-version }}.0"
 
       - name: Setup Django
@@ -91,7 +92,9 @@ jobs:
           python -Wd -m coverage run --source=${APP_NAME}/ manage.py test ${APP_NAME}
 
       - name: Report Test Coverage
-        if: matrix.django-version == env.COVERAGE_DJANGO_VERSION
+        if: |
+          matrix.django-version == env.COVERAGE_DJANGO_VERSION &&
+          matrix.python-version == env.COVERAGE_PYTHON_VERSION
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
