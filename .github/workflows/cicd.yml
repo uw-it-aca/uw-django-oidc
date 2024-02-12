@@ -67,7 +67,7 @@ jobs:
           pip install -e .
           pip install coverage coveralls==3.3.1
 
-      - name: Upgrade Django ${{ matrix.django-version }}
+      - name: Install Django ${{ matrix.django-version }}
         run: pip install "Django~=${{ matrix.django-version }}.0"
 
       - name: Setup Django
