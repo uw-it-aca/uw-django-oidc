@@ -20,11 +20,11 @@ setup(
     name='Uw-Django-Oidc',
     version=VERSION,
     packages=['uw_oidc'],
-    author="UW-IT T&LS",
+    author="UW-IT SETS",
     author_email="aca-it@uw.edu",
     include_package_data=True,
     install_requires=[
-        'Django>=4.2,<5',
+        'Django>=4.2<6.0',
         'UW-RestClients-Core',
         'pyjwt',
         'jwcrypto'
