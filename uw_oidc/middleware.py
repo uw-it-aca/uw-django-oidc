@@ -56,17 +56,19 @@ class IDTokenAuthenticationMiddleware:
 
                         log_info(
                             logger,
-                            {'msg': "Login token-based session",
-                            'user': username,
-                            'expiry_age': request.session.get_expiry_age(),
-                            'url': request.META.get('REQUEST_URI')})
+                            {
+                                'msg': "Login token-based session",
+                                'user': username,
+                                'expiry_age': request.session.get_expiry_age(),
+                                'url': request.META.get('REQUEST_URI')})
                 else:
                     # honor existing session
                     log_info(
                         logger,
-                        {'msg': "Active session exists",
-                        'user': request.user.username,
-                        'expiry_age': request.session.get_expiry_age()})
+                        {
+                            'msg': "Active session exists",
+                            'user': request.user.username,
+                            'expiry_age': request.session.get_expiry_age()})
 
             except InvalidTokenError as ex:
                 return HttpResponse(status=401, reason=str(ex))
