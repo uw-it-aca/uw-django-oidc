@@ -24,7 +24,7 @@ setup(
     author_email="aca-it@uw.edu",
     include_package_data=True,
     install_requires=[
-        'Django>=4.2,<6.0',
+        'Django',
         'UW-RestClients-Core',
         'pyjwt',
         'jwcrypto'
