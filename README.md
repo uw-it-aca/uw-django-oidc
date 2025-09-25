@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/uw-it-aca/uw-django-oidc/workflows/tests/badge.svg)](https://github.com/uw-it-aca/uw-django-oidc/actions)
 [![Coverage Status](https://coveralls.io/repos/github/uw-it-aca/uw-django-oidc/badge.svg?branch=main)](https://coveralls.io/github/uw-it-aca/uw-django-oidc?branch=main)
 [![PyPi Version](https://img.shields.io/pypi/v/uw-django-oidc.svg)](https://pypi.python.org/pypi/uw-django-oidc)
-![Python versions](https://img.shields.io/badge/python-3.12-blue.svg)
+![Python versions](https://img.shields.io/badge/python-3.11-blue.svg)
 
 
 A middleware class that authenticates a Django request containing a UW OIDC id-token
