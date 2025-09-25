@@ -35,7 +35,8 @@ class IDTokenAuthenticationMiddleware:
 
         if 'HTTP_AUTHORIZATION' in request.META:
             try:
-                if not request.user.is_authenticated:
+                user = getattr(request, "user", None)
+                if user is None or not user.is_authenticated:
                     # Conduct the authentication
                     token = request.META['HTTP_AUTHORIZATION'].removeprefix(
                         "Bearer ")
