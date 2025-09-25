@@ -28,10 +28,7 @@ class TestMiddleware(TestCase):
         return IDTokenAuthenticationMiddleware(lambda req: HttpResponse("OK"))
 
     def create_unauthenticated_request(self, auth_token=None):
-        if auth_token is not None:
-            request = self.factory.get('/', HTTP_AUTHORIZATION=auth_token)
-        else:
-            request = self.factory.get('/')
+        request = self.factory.get('/', HTTP_AUTHORIZATION=auth_token)
         get_response = mock.MagicMock()
         SessionMiddleware(get_response).process_request(request)
         AuthenticationMiddleware(get_response).process_request(request)
