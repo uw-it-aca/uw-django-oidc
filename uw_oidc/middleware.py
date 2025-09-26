@@ -35,7 +35,8 @@ class IDTokenAuthenticationMiddleware:
 
         if 'HTTP_AUTHORIZATION' in request.META:
             try:
-                if (request.user and request.user.is_authenticated and
+                user = getattr(request, "user", None)
+                if (user and request.user and request.user.is_authenticated and
                         request.session):
                     # honor existing session
                     log_info(
