@@ -35,8 +35,17 @@ class IDTokenAuthenticationMiddleware:
 
         if 'HTTP_AUTHORIZATION' in request.META:
             try:
-                user = getattr(request, "user", None)
-                if user is None or not user.is_authenticated:
+                if (request.user and request.user.is_authenticated and
+                        request.session):
+                    # honor existing session
+                    log_info(
+                        logger,
+                        {
+                            'msg': "Active session exists",
+                            'user': request.user.username,
+                            'expiry_age': request.session.get_expiry_age()
+                        })
+                else:
                     # Conduct the authentication
                     token = request.META['HTTP_AUTHORIZATION'].removeprefix(
                         "Bearer ")
@@ -61,15 +70,8 @@ class IDTokenAuthenticationMiddleware:
                                 'msg': "Login token-based session",
                                 'user': username,
                                 'expiry_age': request.session.get_expiry_age(),
-                                'url': request.META.get('REQUEST_URI')})
-                else:
-                    # honor existing session
-                    log_info(
-                        logger,
-                        {
-                            'msg': "Active session exists",
-                            'user': request.user.username,
-                            'expiry_age': request.session.get_expiry_age()})
+                                'url': request.META.get('REQUEST_URI')
+                            })
 
             except InvalidTokenError as ex:
                 return HttpResponse(status=401, reason=str(ex))
